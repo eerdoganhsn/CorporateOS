@@ -1,0 +1,12 @@
+{
+  "name": "corporateos-dev-checks",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "check": "node check.mjs",
+    "probe": "node probe.mjs"
+  },
+  "devDependencies": {
+    "playwright-core": "1.56.1"
+  }
+}
