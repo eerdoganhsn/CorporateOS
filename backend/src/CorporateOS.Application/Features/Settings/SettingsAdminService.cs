@@ -6,6 +6,7 @@ using CorporateOS.Application.Common.Models;
 using CorporateOS.Domain.Constants;
 using CorporateOS.Domain.Entities;
 using CorporateOS.Domain.Enums;
+using CorporateOS.Domain.Localization;
 using FluentValidation;
 using Microsoft.EntityFrameworkCore;
 
@@ -41,9 +42,9 @@ public sealed class UpdateSettingsRequestValidator : AbstractValidator<UpdateSet
 {
     public UpdateSettingsRequestValidator()
     {
-        RuleFor(x => x.Values).NotEmpty().WithMessage("No settings were provided.");
+        RuleFor(x => x.Values).NotEmpty().WithMessage(_ => Text.Get("settings.noValues"));
         RuleForEach(x => x.Values).Must(kv => kv.Value is not null && kv.Value.Length <= 2000)
-            .WithMessage("Setting values must be at most 2000 characters.");
+            .WithMessage(_ => Text.Get("settings.valueTooLong"));
     }
 }
 
@@ -96,13 +97,13 @@ public sealed class SettingsAdminService(
             var definition = SettingCatalog.Find(key);
             if (definition is null || definition.Key == SettingKeys.CompanyLogoPath)
             {
-                errors[key] = ["Unknown or read-only setting."];
+                errors[key] = [Text.Get("settings.unknown")];
                 continue;
             }
 
             if (definition.IsAdvanced && !scope.IsSuperAdmin)
             {
-                throw new ForbiddenException($"Only a SuperAdmin can change {definition.Category.ToLowerInvariant()} settings.");
+                throw new ForbiddenException(Text.Get("settings.superAdminOnly", Text.Get("settings.category." + definition.Category)));
             }
 
             var (normalized, error) = Normalize(definition, rawValue?.Trim() ?? string.Empty);
@@ -212,27 +213,27 @@ public sealed class SettingsAdminService(
             case SettingDataType.Integer:
                 if (!int.TryParse(value, NumberStyles.Integer, CultureInfo.InvariantCulture, out var number))
                 {
-                    return (value, "Must be a whole number.");
+                    return (value, Text.Get("settings.wholeNumber"));
                 }
 
                 if (number < definition.MinValue || number > definition.MaxValue)
                 {
-                    return (value, $"Must be between {definition.MinValue} and {definition.MaxValue}.");
+                    return (value, Text.Get("settings.between", definition.MinValue, definition.MaxValue));
                 }
 
                 return (number.ToString(CultureInfo.InvariantCulture), null);
 
             case SettingDataType.Boolean:
-                return bool.TryParse(value, out var flag) ? (flag ? "true" : "false", null) : (value, "Must be true or false.");
+                return bool.TryParse(value, out var flag) ? (flag ? "true" : "false", null) : (value, Text.Get("settings.boolean"));
         }
 
         return definition.Key switch
         {
-            SettingKeys.CompanyName when value.Length is 0 or > 150 => (value, "Company name is required (max 150 characters)."),
-            SettingKeys.DefaultCurrency when value.Length != 3 || !value.All(char.IsLetter) => (value, "Must be a three-letter ISO currency code."),
+            SettingKeys.CompanyName when value.Length is 0 or > 150 => (value, Text.Get("settings.companyName")),
+            SettingKeys.DefaultCurrency when value.Length != 3 || !value.All(char.IsLetter) => (value, Text.Get("settings.currency")),
             SettingKeys.DefaultCurrency => (value.ToUpperInvariant(), null),
-            SettingKeys.CompanyEmail when value.Length > 0 && (!value.Contains('@') || value.Length > 256) => (value, "Must be a valid email address."),
-            SettingKeys.Timezone when !IsValidTimeZone(value) => (value, "Unknown timezone. Use an IANA name such as Europe/Istanbul or UTC."),
+            SettingKeys.CompanyEmail when value.Length > 0 && (!value.Contains('@') || value.Length > 256) => (value, Text.Get("settings.email")),
+            SettingKeys.Timezone when !IsValidTimeZone(value) => (value, Text.Get("settings.timezone")),
             SettingKeys.AllowedExtensions => NormalizeExtensions(value),
             _ => (value, null)
         };
@@ -247,17 +248,17 @@ public sealed class SettingsAdminService(
 
         if (extensions.Count == 0)
         {
-            return (value, "At least one extension is required.");
+            return (value, Text.Get("settings.extensionsRequired"));
         }
 
         var blocked = extensions.Where(FileRules.BlockedExtensions.Contains).ToList();
         if (blocked.Count > 0)
         {
-            return (value, $"These extensions are never allowed: {string.Join(", ", blocked)}.");
+            return (value, Text.Get("settings.extensionsBlocked", string.Join(", ", blocked)));
         }
 
         return extensions.Any(e => e.Length < 2 || !e[1..].All(char.IsLetterOrDigit))
-            ? (value, "Extensions may only contain letters and digits.")
+            ? (value, Text.Get("settings.extensionsFormat"))
             : (string.Join(',', extensions), null);
     }
 

@@ -1,4 +1,5 @@
 using CorporateOS.Domain.Entities;
+using CorporateOS.Domain.Localization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
@@ -11,6 +12,7 @@ public sealed class ApplicationUserConfiguration : IEntityTypeConfiguration<Appl
     {
         builder.ToTable("Users");
         builder.Property(u => u.DisplayName).HasMaxLength(200).IsRequired();
+        builder.Property(u => u.PreferredLanguage).HasMaxLength(5).IsRequired().HasDefaultValue(Languages.Default);
         builder.HasIndex(u => u.IsActive);
     }
 }

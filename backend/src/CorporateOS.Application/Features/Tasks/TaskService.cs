@@ -7,6 +7,7 @@ using CorporateOS.Application.Common.Options;
 using CorporateOS.Application.Features.Projects;
 using CorporateOS.Domain.Entities;
 using CorporateOS.Domain.Enums;
+using CorporateOS.Domain.Localization;
 using Microsoft.EntityFrameworkCore;
 
 namespace CorporateOS.Application.Features.Tasks;
@@ -115,16 +116,16 @@ public sealed class TaskService(
     {
         var scope = await currentUser.GetScopeAsync(cancellationToken);
         var project = await db.Projects.FirstOrDefaultAsync(p => p.Id == request.ProjectId, cancellationToken)
-                      ?? throw new RequestValidationException("projectId", "The selected project does not exist.");
+                      ?? throw new RequestValidationException("projectId", Text.Get("error.projectNotFound"));
 
         if (!ProjectAccess.CanManageTasks(scope, project))
         {
-            throw new ForbiddenException("You cannot create tasks in this project.");
+            throw new ForbiddenException(Text.Get("task.createForbidden"));
         }
 
         if (project.IsArchived)
         {
-            throw new Domain.Exceptions.DomainException("Tasks cannot be added to an archived project.");
+            throw new Domain.Exceptions.DomainException(Text.Get("task.archivedProject"));
         }
 
         await EnsureAssignableAsync(scope, project, request.AssignedToId, cancellationToken);
@@ -164,7 +165,7 @@ public sealed class TaskService(
         if (!ProjectAccess.CanManageTasks(scope, task.Project))
         {
             await EnsureVisibleAsync(scope, id, cancellationToken);
-            throw new ForbiddenException("You can update the progress of this task, but not edit its details.");
+            throw new ForbiddenException(Text.Get("task.progressOnly"));
         }
 
         await EnsureAssignableAsync(scope, task.Project, request.AssignedToId, cancellationToken);
@@ -214,12 +215,12 @@ public sealed class TaskService(
         var isAssignee = scope.EmployeeId.HasValue && task.AssignedToId == scope.EmployeeId;
         if (!isAssignee && !ProjectAccess.CanManageTasks(scope, task.Project))
         {
-            throw new ForbiddenException("You can only update tasks assigned to you.");
+            throw new ForbiddenException(Text.Get("task.ownOnly"));
         }
 
         if (isAssignee && !ProjectAccess.CanManageTasks(scope, task.Project) && request.Status == TaskItemStatus.Cancelled)
         {
-            throw new ForbiddenException("Only a manager can cancel a task.");
+            throw new ForbiddenException(Text.Get("task.cancelManagerOnly"));
         }
 
         var before = new { task.Status, task.ProgressPercentage, task.ActualHours };
@@ -254,7 +255,7 @@ public sealed class TaskService(
                    ?? throw new NotFoundException("Task", id);
         if (!ProjectAccess.CanManageTasks(scope, task.Project))
         {
-            throw new ForbiddenException("You cannot delete tasks in this project.");
+            throw new ForbiddenException(Text.Get("task.deleteForbidden"));
         }
 
         db.Tasks.Remove(task); // soft delete
@@ -352,7 +353,7 @@ public sealed class TaskService(
     {
         if (!await db.Tasks.Where(t => t.Id == taskId).AnyAsync(ProjectAccess.VisibleTasks(scope), cancellationToken))
         {
-            throw new ForbiddenException("You do not have access to this task.");
+            throw new ForbiddenException(Text.Get("task.noAccess"));
         }
     }
 
@@ -368,11 +369,11 @@ public sealed class TaskService(
         }
 
         var assignee = await db.Employees.AsNoTracking().FirstOrDefaultAsync(e => e.Id == assigneeId, cancellationToken)
-                       ?? throw new RequestValidationException("assignedToId", "The selected assignee does not exist.");
+                       ?? throw new RequestValidationException("assignedToId", Text.Get("error.assigneeNotFound"));
 
         if (assignee.Status is EmployeeStatus.Inactive or EmployeeStatus.Terminated)
         {
-            throw new RequestValidationException("assignedToId", "Tasks cannot be assigned to inactive employees.");
+            throw new RequestValidationException("assignedToId", Text.Get("task.inactiveAssignee"));
         }
 
         if (ProjectAccess.CanManageProject(scope, project))
@@ -383,7 +384,7 @@ public sealed class TaskService(
         var isProjectMember = await db.ProjectMembers.AnyAsync(m => m.ProjectId == project.Id && m.EmployeeId == assigneeId, cancellationToken);
         if (assignee.DepartmentId != scope.DepartmentId && !isProjectMember)
         {
-            throw new ForbiddenException("You can only assign tasks to members of your department or of this project.");
+            throw new ForbiddenException(Text.Get("task.assignScope"));
         }
     }
 

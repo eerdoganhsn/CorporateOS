@@ -1,5 +1,6 @@
 using CorporateOS.Application.Common.Models;
 using CorporateOS.Domain.Constants;
+using CorporateOS.Domain.Localization;
 using FluentValidation;
 
 namespace CorporateOS.Application.Features.Users;
@@ -42,8 +43,8 @@ public sealed class AssignRolesRequestValidator : AbstractValidator<AssignRolesR
 {
     public AssignRolesRequestValidator()
     {
-        RuleFor(x => x.Roles).NotEmpty().WithMessage("A user must have at least one role.");
-        RuleForEach(x => x.Roles).Must(r => Roles.All.Contains(r)).WithMessage("'{PropertyValue}' is not a valid role.");
+        RuleFor(x => x.Roles).NotEmpty().WithMessage(_ => Text.Get("user.atLeastOneRole"));
+        RuleForEach(x => x.Roles).Must(r => Roles.All.Contains(r)).WithMessage((_, role) => Text.Get("user.invalidRole", role));
     }
 }
 

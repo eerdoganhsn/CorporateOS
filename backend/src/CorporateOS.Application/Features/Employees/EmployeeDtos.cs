@@ -1,6 +1,7 @@
 using CorporateOS.Application.Common.Models;
 using CorporateOS.Domain.Constants;
 using CorporateOS.Domain.Enums;
+using CorporateOS.Domain.Localization;
 using FluentValidation;
 
 namespace CorporateOS.Application.Features.Employees;
@@ -111,22 +112,22 @@ public abstract class SaveEmployeeRequestValidator<T> : AbstractValidator<T> whe
         var today = DateOnly.FromDateTime(clock.GetUtcNow().UtcDateTime);
 
         RuleFor(x => x.EmployeeNumber).NotEmpty().MaximumLength(20)
-            .Matches("^[A-Za-z0-9-]+$").WithMessage("Employee number may only contain letters, digits and hyphens.");
+            .Matches("^[A-Za-z0-9-]+$").WithMessage(_ => Text.Get("employee.numberFormat"));
         RuleFor(x => x.FirstName).NotEmpty().MaximumLength(100);
         RuleFor(x => x.LastName).NotEmpty().MaximumLength(100);
         RuleFor(x => x.Email).NotEmpty().EmailAddress().MaximumLength(256);
-        RuleFor(x => x.Phone).MaximumLength(30).Matches(@"^[0-9+()\-\s.]*$").WithMessage("Phone contains invalid characters.");
-        RuleFor(x => x.DepartmentId).GreaterThan(0).WithMessage("Department is required.");
-        RuleFor(x => x.PositionId).GreaterThan(0).WithMessage("Position is required.");
+        RuleFor(x => x.Phone).MaximumLength(30).Matches(@"^[0-9+()\-\s.]*$").WithMessage(_ => Text.Get("error.phoneInvalid"));
+        RuleFor(x => x.DepartmentId).GreaterThan(0).WithMessage(_ => Text.Get("employee.departmentRequired"));
+        RuleFor(x => x.PositionId).GreaterThan(0).WithMessage(_ => Text.Get("employee.positionRequired"));
         RuleFor(x => x.HireDate).NotEmpty().LessThanOrEqualTo(today.AddYears(1))
-            .WithMessage("Hire date cannot be more than a year in the future.");
+            .WithMessage(_ => Text.Get("employee.hireDateTooFar"));
         RuleFor(x => x.EmploymentType).IsInEnum();
         RuleFor(x => x.Status).IsInEnum();
         RuleFor(x => x.Address).MaximumLength(500);
         RuleFor(x => x.EmergencyContactName).MaximumLength(150);
         RuleFor(x => x.EmergencyContactPhone).MaximumLength(30);
         RuleFor(x => x.BirthDate).LessThan(today.AddYears(-14)).When(x => x.BirthDate.HasValue)
-            .WithMessage("Employees must be at least 14 years old.");
+            .WithMessage(_ => Text.Get("employee.tooYoung"));
         RuleFor(x => x.Salary).GreaterThanOrEqualTo(0).LessThan(100_000_000).When(x => x.Salary.HasValue);
     }
 }
@@ -137,7 +138,7 @@ public sealed class CreateEmployeeRequestValidator : SaveEmployeeRequestValidato
     {
         When(x => x.CreateUserAccount, () =>
         {
-            RuleFor(x => x.Role).NotEmpty().Must(r => Roles.All.Contains(r!)).WithMessage("Select a valid role.");
+            RuleFor(x => x.Role).NotEmpty().Must(r => Roles.All.Contains(r!)).WithMessage(_ => Text.Get("employee.invalidRole"));
             RuleFor(x => x.TemporaryPassword).NotEmpty().MinimumLength(8).MaximumLength(128);
         });
     }

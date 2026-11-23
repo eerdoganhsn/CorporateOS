@@ -10,6 +10,7 @@ using CorporateOS.Application.Features.Projects;
 using CorporateOS.Application.Features.Reports;
 using CorporateOS.Application.Features.Tasks;
 using CorporateOS.Domain.Enums;
+using CorporateOS.Domain.Localization;
 using Microsoft.EntityFrameworkCore;
 
 namespace CorporateOS.Application.Features.Dashboard;
@@ -93,7 +94,7 @@ public sealed class DashboardService(
     public async Task<ManagerDashboardDto> GetManagerAsync(CancellationToken cancellationToken)
     {
         var scope = await currentUser.GetScopeAsync(cancellationToken);
-        var departmentId = scope.DepartmentId ?? throw new ForbiddenException("Your account is not linked to a department.");
+        var departmentId = scope.DepartmentId ?? throw new ForbiddenException(Text.Get("error.noDepartment"));
         var today = Today;
         var thirtyDaysAgo = Now.AddDays(-30);
 

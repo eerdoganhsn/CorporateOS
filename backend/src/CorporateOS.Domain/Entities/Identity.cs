@@ -9,6 +9,9 @@ public class ApplicationUser : IdentityUser<Guid>
     public DateTime? LastLoginAt { get; set; }
     public DateTime CreatedAt { get; set; }
 
+    /// <summary>UI and notification language (tr, en or de); see <see cref="Localization.Languages"/>.</summary>
+    public string PreferredLanguage { get; set; } = Localization.Languages.Default;
+
     public Employee? Employee { get; set; }
     public ICollection<RefreshToken> RefreshTokens { get; set; } = new List<RefreshToken>();
 }

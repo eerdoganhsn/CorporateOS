@@ -4,6 +4,7 @@ using CorporateOS.Application.Common.Interfaces;
 using CorporateOS.Application.Common.Models;
 using CorporateOS.Domain.Entities;
 using CorporateOS.Domain.Enums;
+using CorporateOS.Domain.Localization;
 using FluentValidation;
 using Mapster;
 using Microsoft.EntityFrameworkCore;
@@ -102,7 +103,7 @@ public sealed class PositionService(IApplicationDbContext db, IAuditService audi
                        ?? throw new NotFoundException("Position", id);
         if (await db.Employees.IgnoreQueryFilters().AnyAsync(e => e.PositionId == id, cancellationToken))
         {
-            throw new ConflictException("This position is assigned to employees. Deactivate it instead.");
+            throw new ConflictException(Text.Get("position.inUse"));
         }
 
         db.Positions.Remove(position);
@@ -117,13 +118,13 @@ public sealed class PositionService(IApplicationDbContext db, IAuditService audi
     {
         if (request.DepartmentId.HasValue && !await db.Departments.AnyAsync(d => d.Id == request.DepartmentId, cancellationToken))
         {
-            throw new RequestValidationException("departmentId", "The selected department does not exist.");
+            throw new RequestValidationException("departmentId", Text.Get("error.departmentNotFound"));
         }
 
         var title = request.Title.Trim();
         if (await db.Positions.AnyAsync(p => p.Title == title && p.DepartmentId == request.DepartmentId && p.Id != excludeId, cancellationToken))
         {
-            throw new ConflictException($"A position titled '{title}' already exists for this department.");
+            throw new ConflictException(Text.Get("position.titleInUse", title));
         }
     }
 

@@ -4,6 +4,7 @@ using CorporateOS.Application.Common.Interfaces;
 using CorporateOS.Application.Common.Options;
 using CorporateOS.Domain.Constants;
 using CorporateOS.Domain.Entities;
+using CorporateOS.Domain.Localization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
@@ -34,7 +35,7 @@ public sealed class AuthService(
     TimeProvider clock,
     ILogger<AuthService> logger) : IAuthService
 {
-    private const string InvalidCredentials = "Invalid email or password.";
+    private static string InvalidCredentials => Text.Get("auth.invalidCredentials");
     private const string RotatedReason = "Rotated";
     private const int RotationGraceSeconds = 10;
 
@@ -54,7 +55,7 @@ public sealed class AuthService(
         if (user.LockoutEnd is { } lockoutEnd && lockoutEnd.UtcDateTime > now)
         {
             logger.LogWarning("Login rejected: account {UserId} is locked.", user.Id);
-            throw new UnauthorizedException($"This account is locked until {lockoutEnd.UtcDateTime:yyyy-MM-dd HH:mm} UTC.");
+            throw new UnauthorizedException(Text.Get("auth.locked", lockoutEnd.UtcDateTime));
         }
 
         if (!await userManager.CheckPasswordAsync(user, request.Password))
@@ -68,7 +69,7 @@ public sealed class AuthService(
             logger.LogWarning("Login rejected: account {UserId} is deactivated.", user.Id);
             audit.Record("Auth.LoginFailed", "User", user.Id.ToString(), newValues: new { reason = "Deactivated" }, userId: user.Id, userEmail: user.Email);
             await db.SaveChangesAsync(cancellationToken);
-            throw new UnauthorizedException("This account has been deactivated. Contact your administrator.");
+            throw new UnauthorizedException(Text.Get("auth.deactivated"));
         }
 
         user.AccessFailedCount = 0;
@@ -88,14 +89,14 @@ public sealed class AuthService(
         var hash = tokenService.HashToken(refreshToken);
         var stored = await db.RefreshTokens.Include(t => t.User)
             .SingleOrDefaultAsync(t => t.TokenHash == hash, cancellationToken)
-            ?? throw new UnauthorizedException("Invalid refresh token.");
+            ?? throw new UnauthorizedException(Text.Get("auth.invalidRefreshToken"));
 
         if (stored.RevokedAt is not null)
         {
             // Two requests racing to refresh within a few seconds is benign; reject without escalating.
             if (stored.RevokedReason == RotatedReason && stored.RevokedAt > now.AddSeconds(-RotationGraceSeconds))
             {
-                throw new UnauthorizedException("Session was refreshed by a concurrent request.");
+                throw new UnauthorizedException(Text.Get("auth.concurrentRefresh"));
             }
 
             // A rotated token was presented again: assume theft and end every session of this user.
@@ -103,12 +104,12 @@ public sealed class AuthService(
             await RevokeAllAsync(stored.UserId, "Reuse detected", cancellationToken);
             audit.Record("Auth.RefreshTokenReuse", "User", stored.UserId.ToString(), userId: stored.UserId, userEmail: stored.User.Email);
             await db.SaveChangesAsync(cancellationToken);
-            throw new UnauthorizedException("Session is no longer valid. Please sign in again.");
+            throw new UnauthorizedException(Text.Get("auth.sessionInvalid"));
         }
 
         if (stored.ExpiresAt <= now || !stored.User.IsActive)
         {
-            throw new UnauthorizedException("Session has expired. Please sign in again.");
+            throw new UnauthorizedException(Text.Get("auth.sessionExpired"));
         }
 
         var result = await IssueTokensAsync(stored.User, cancellationToken);
@@ -159,7 +160,7 @@ public sealed class AuthService(
 
         await email.SendAsync(
             user.Email!,
-            "Reset your CorporateOS password",
+            Text.Get("auth.resetEmail.subject"),
             $"""
              <p>Hello {WebUtility.HtmlEncode(user.DisplayName)},</p>
              <p>We received a request to reset your password. The link below is valid for a limited time.</p>
@@ -175,7 +176,7 @@ public sealed class AuthService(
     public async Task ResetPasswordAsync(ResetPasswordRequest request, CancellationToken cancellationToken)
     {
         var user = await userManager.FindByEmailAsync(request.Email)
-                   ?? throw new RequestValidationException("token", "The reset link is invalid or has expired.");
+                   ?? throw new RequestValidationException("token", Text.Get("auth.resetLinkInvalid"));
 
         var result = await userManager.ResetPasswordAsync(user, request.Token, request.NewPassword);
         ThrowIfFailed(result, "newPassword");
@@ -194,7 +195,7 @@ public sealed class AuthService(
 
         if (!await userManager.CheckPasswordAsync(user, request.CurrentPassword))
         {
-            throw new RequestValidationException("currentPassword", "The current password is incorrect.");
+            throw new RequestValidationException("currentPassword", Text.Get("auth.currentPasswordIncorrect"));
         }
 
         var result = await userManager.ChangePasswordAsync(user, request.CurrentPassword, request.NewPassword);
@@ -269,7 +270,8 @@ public sealed class AuthService(
             employee?.DepartmentId,
             employee?.DepartmentName,
             employee?.PositionTitle,
-            MediaUrls.Avatar(employee?.ProfileImagePath));
+            MediaUrls.Avatar(employee?.ProfileImagePath),
+            Languages.Normalize(user.PreferredLanguage));
     }
 
     private async Task RevokeAllAsync(Guid userId, string reason, CancellationToken cancellationToken)
@@ -288,7 +290,7 @@ public sealed class AuthService(
     {
         if (!result.Succeeded)
         {
-            var messages = result.Errors.Select(e => e.Code == "InvalidToken" ? "The reset link is invalid or has expired." : e.Description).ToArray();
+            var messages = result.Errors.Select(e => e.Code == "InvalidToken" ? Text.Get("auth.resetLinkInvalid") : e.Description).ToArray();
             throw new RequestValidationException(new Dictionary<string, string[]> { [field] = messages });
         }
     }

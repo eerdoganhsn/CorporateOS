@@ -8,6 +8,7 @@ using CorporateOS.Application.Features.Leave;
 using CorporateOS.Domain.Entities;
 using CorporateOS.Domain.Enums;
 using CorporateOS.Domain.Exceptions;
+using CorporateOS.Domain.Localization;
 using Microsoft.EntityFrameworkCore;
 
 namespace CorporateOS.Application.Features.Expenses;
@@ -112,7 +113,7 @@ public sealed class ExpenseService(
         if (dto is null)
         {
             throw await db.Expenses.AnyAsync(e => e.Id == id, cancellationToken)
-                ? new ForbiddenException("You do not have access to this expense.")
+                ? new ForbiddenException(Text.Get("expense.noAccess"))
                 : new NotFoundException("Expense", id);
         }
 
@@ -147,7 +148,7 @@ public sealed class ExpenseService(
         var expense = await LoadOwnEditableAsync(id, cancellationToken);
         if (expense.Status != ExpenseStatus.Draft)
         {
-            throw new DomainException("Only draft expenses can be deleted.");
+            throw new DomainException(Text.Get("expense.onlyDraftDelete"));
         }
 
         db.Expenses.Remove(expense);
@@ -189,11 +190,11 @@ public sealed class ExpenseService(
         var expense = await db.Expenses.AsNoTracking().FirstAsync(e => e.Id == id, cancellationToken);
         if (!dto.HasReceipt || expense.ReceiptPath is null)
         {
-            throw new NotFoundException("This expense has no receipt.");
+            throw new NotFoundException(Text.Get("expense.noReceipt"));
         }
 
         var stream = await storage.OpenReadAsync(expense.ReceiptPath, cancellationToken)
-                     ?? throw new NotFoundException("The receipt file is missing from storage.");
+                     ?? throw new NotFoundException(Text.Get("error.fileMissing"));
         return new FileDownload(stream, expense.ReceiptContentType ?? "application/octet-stream", expense.ReceiptFileName ?? $"receipt-{id}");
     }
 
@@ -279,12 +280,12 @@ public sealed class ExpenseService(
 
         if (expense.EmployeeId != scope.EmployeeId)
         {
-            throw new ForbiddenException("You can only change your own expenses.");
+            throw new ForbiddenException(Text.Get("expense.ownOnly"));
         }
 
         if (!expense.IsEditable)
         {
-            throw new DomainException($"This expense can no longer be changed (status: {expense.Status}).");
+            throw new DomainException(Text.Get("expense.locked", expense.Status));
         }
 
         return expense;
@@ -298,7 +299,7 @@ public sealed class ExpenseService(
 
         if (!scope.IsAdmin && !scope.ManagesDepartment(expense.Employee.DepartmentId))
         {
-            throw new ForbiddenException("You can only decide expenses for your own department.");
+            throw new ForbiddenException(Text.Get("expense.ownDepartmentOnly"));
         }
 
         return (scope, expense);

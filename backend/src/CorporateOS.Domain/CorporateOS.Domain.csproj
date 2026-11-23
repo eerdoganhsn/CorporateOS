@@ -4,4 +4,9 @@
     <PackageReference Include="Microsoft.Extensions.Identity.Stores" Version="10.0.15" />
   </ItemGroup>
 
+  <ItemGroup>
+    <!-- Backend message catalogs (tr, en, de); see Localization/Text.cs -->
+    <EmbeddedResource Include="Localization\Resources\*.json" LogicalName="CorporateOS.Domain.Localization.Resources.%(Filename).json" />
+  </ItemGroup>
+
 </Project>

@@ -1,6 +1,7 @@
 using CorporateOS.Application.Common.Interfaces;
 using CorporateOS.Domain.Constants;
 using CorporateOS.Domain.Entities;
+using CorporateOS.Domain.Localization;
 using Microsoft.AspNetCore.Identity;
 
 namespace CorporateOS.Infrastructure.Identity;
@@ -25,17 +26,17 @@ public sealed class SettingsPasswordValidator(ISettingsService settings) : IPass
 
         if (await settings.GetBoolAsync(SettingKeys.PasswordRequireDigit) && !password.Any(char.IsDigit))
         {
-            errors.Add(Error("PasswordRequiresDigit", "Password must contain at least one digit."));
+            errors.Add(Error("PasswordRequiresDigit", Text.Get("password.requiresDigit")));
         }
 
         if (await settings.GetBoolAsync(SettingKeys.PasswordRequireUppercase) && !password.Any(char.IsUpper))
         {
-            errors.Add(Error("PasswordRequiresUpper", "Password must contain at least one uppercase letter."));
+            errors.Add(Error("PasswordRequiresUpper", Text.Get("password.requiresUpper")));
         }
 
         if (await settings.GetBoolAsync(SettingKeys.PasswordRequireNonAlphanumeric) && password.All(char.IsLetterOrDigit))
         {
-            errors.Add(Error("PasswordRequiresNonAlphanumeric", "Password must contain at least one symbol."));
+            errors.Add(Error("PasswordRequiresNonAlphanumeric", Text.Get("password.requiresSymbol")));
         }
 
         return errors.Count == 0 ? IdentityResult.Success : IdentityResult.Failed([.. errors]);

@@ -1,5 +1,6 @@
 using System.Text.Json;
 using CorporateOS.Application.Common.Models;
+using CorporateOS.Domain.Localization;
 using FluentValidation;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Filters;
@@ -45,7 +46,7 @@ public sealed class ValidationFilter(IServiceProvider services) : IAsyncActionFi
         if (errors.Count > 0)
         {
             context.Result = new BadRequestObjectResult(
-                ApiResponse.Fail("Validation failed", errors.ToDictionary(e => e.Key, e => e.Value.ToArray())));
+                ApiResponse.Fail(Text.Get("error.validationFailed"), errors.ToDictionary(e => e.Key, e => e.Value.ToArray())));
             return;
         }
 

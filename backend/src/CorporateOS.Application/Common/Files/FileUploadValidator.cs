@@ -2,6 +2,7 @@ using CorporateOS.Application.Common.Exceptions;
 using CorporateOS.Application.Common.Interfaces;
 using CorporateOS.Application.Common.Models;
 using CorporateOS.Domain.Constants;
+using CorporateOS.Domain.Localization;
 
 namespace CorporateOS.Application.Common.Files;
 
@@ -31,13 +32,13 @@ public sealed class FileUploadValidator(ISettingsService settings) : IFileUpload
     {
         if (file.Length <= 0)
         {
-            throw new RequestValidationException(Field, "The file is empty.");
+            throw new RequestValidationException(Field, Text.Get("file.empty"));
         }
 
         var extension = Path.GetExtension(file.FileName).ToLowerInvariant();
         if (string.IsNullOrEmpty(extension) || FileRules.BlockedExtensions.Contains(extension))
         {
-            throw new RequestValidationException(Field, "This file type is not allowed.");
+            throw new RequestValidationException(Field, Text.Get("file.typeNotAllowed"));
         }
 
         var allowed = kind switch
@@ -49,7 +50,7 @@ public sealed class FileUploadValidator(ISettingsService settings) : IFileUpload
 
         if (!allowed.Contains(extension))
         {
-            throw new RequestValidationException(Field, $"Allowed file types: {string.Join(", ", allowed.Order())}.");
+            throw new RequestValidationException(Field, Text.Get("file.allowedTypes", string.Join(", ", allowed.Order())));
         }
 
         var maxBytes = kind == UploadKind.Image
@@ -58,14 +59,14 @@ public sealed class FileUploadValidator(ISettingsService settings) : IFileUpload
 
         if (file.Length > maxBytes)
         {
-            throw new RequestValidationException(Field, $"The file exceeds the maximum size of {maxBytes / (1024 * 1024)} MB.");
+            throw new RequestValidationException(Field, Text.Get("file.tooLarge", maxBytes / (1024 * 1024)));
         }
 
         await using (var stream = file.OpenReadStream())
         {
             if (!await FileSignatures.MatchesAsync(stream, extension, cancellationToken))
             {
-                throw new RequestValidationException(Field, "The file content does not match its extension.");
+                throw new RequestValidationException(Field, Text.Get("file.signatureMismatch"));
             }
         }
 

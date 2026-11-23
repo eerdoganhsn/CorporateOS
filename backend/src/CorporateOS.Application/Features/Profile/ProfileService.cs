@@ -3,6 +3,7 @@ using CorporateOS.Application.Common.Interfaces;
 using CorporateOS.Application.Common.Models;
 using CorporateOS.Application.Features.Auth;
 using CorporateOS.Application.Features.Employees;
+using CorporateOS.Domain.Localization;
 using FluentValidation;
 using Microsoft.EntityFrameworkCore;
 
@@ -17,10 +18,20 @@ public sealed class UpdateProfileRequestValidator : AbstractValidator<UpdateProf
 {
     public UpdateProfileRequestValidator()
     {
-        RuleFor(x => x.Phone).MaximumLength(30).Matches(@"^[0-9+()\-\s.]*$").WithMessage("Phone contains invalid characters.");
+        RuleFor(x => x.Phone).MaximumLength(30).Matches(@"^[0-9+()\-\s.]*$").WithMessage(_ => Text.Get("error.phoneInvalid"));
         RuleFor(x => x.Address).MaximumLength(500);
         RuleFor(x => x.EmergencyContactName).MaximumLength(150);
-        RuleFor(x => x.EmergencyContactPhone).MaximumLength(30).Matches(@"^[0-9+()\-\s.]*$").WithMessage("Phone contains invalid characters.");
+        RuleFor(x => x.EmergencyContactPhone).MaximumLength(30).Matches(@"^[0-9+()\-\s.]*$").WithMessage(_ => Text.Get("error.phoneInvalid"));
+    }
+}
+
+public sealed record UpdateLanguageRequest(string Language);
+
+public sealed class UpdateLanguageRequestValidator : AbstractValidator<UpdateLanguageRequest>
+{
+    public UpdateLanguageRequestValidator()
+    {
+        RuleFor(x => x.Language).Must(Languages.IsSupported).WithMessage(_ => Text.Get("auth.unsupportedLanguage"));
     }
 }
 
@@ -29,6 +40,9 @@ public interface IProfileService
     Task<ProfileDto> GetAsync(CancellationToken cancellationToken);
     Task<ProfileDto> UpdateAsync(UpdateProfileRequest request, CancellationToken cancellationToken);
     Task<string> UploadAvatarAsync(FileUpload file, CancellationToken cancellationToken);
+
+    /// <summary>Stores the caller's preferred language (UI, e-mails and notifications).</summary>
+    Task<AuthUserDto> UpdateLanguageAsync(UpdateLanguageRequest request, CancellationToken cancellationToken);
 }
 
 public sealed class ProfileService(
@@ -70,5 +84,23 @@ public sealed class ProfileService(
     {
         var scope = await currentUser.GetScopeAsync(cancellationToken);
         return await employees.UploadImageAsync(scope.RequireEmployeeId(), file, cancellationToken);
+    }
+
+    public async Task<AuthUserDto> UpdateLanguageAsync(UpdateLanguageRequest request, CancellationToken cancellationToken)
+    {
+        var userId = currentUser.UserId ?? throw new UnauthorizedException();
+        var user = await db.Users.FirstOrDefaultAsync(u => u.Id == userId, cancellationToken)
+                   ?? throw new UnauthorizedException();
+
+        var language = Languages.Normalize(request.Language);
+        if (user.PreferredLanguage != language)
+        {
+            audit.Record("Profile.LanguageChanged", "User", userId.ToString(),
+                new { Language = user.PreferredLanguage }, new { Language = language });
+            user.PreferredLanguage = language;
+            await db.SaveChangesAsync(cancellationToken);
+        }
+
+        return await auth.GetCurrentUserAsync(cancellationToken);
     }
 }

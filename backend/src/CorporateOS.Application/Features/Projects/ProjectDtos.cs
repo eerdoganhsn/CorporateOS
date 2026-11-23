@@ -1,5 +1,6 @@
 using CorporateOS.Application.Common.Models;
 using CorporateOS.Domain.Enums;
+using CorporateOS.Domain.Localization;
 using FluentValidation;
 
 namespace CorporateOS.Application.Features.Projects;
@@ -88,12 +89,12 @@ public sealed class SaveProjectRequestValidator : AbstractValidator<SaveProjectR
     {
         RuleFor(x => x.Name).NotEmpty().MaximumLength(200);
         RuleFor(x => x.ProjectCode).NotEmpty().MaximumLength(20)
-            .Matches("^[A-Za-z0-9-]+$").WithMessage("Project code may only contain letters, digits and hyphens.");
+            .Matches("^[A-Za-z0-9-]+$").WithMessage(_ => Text.Get("project.codeFormat"));
         RuleFor(x => x.Description).MaximumLength(4000);
         RuleFor(x => x.StartDate).NotEmpty();
         RuleFor(x => x.EndDate)
             .GreaterThanOrEqualTo(x => x.StartDate).When(x => x.EndDate.HasValue)
-            .WithMessage("End date cannot be earlier than start date.");
+            .WithMessage(_ => Text.Get("error.endBeforeStart"));
         RuleFor(x => x.Status).IsInEnum();
         RuleFor(x => x.Priority).IsInEnum();
         RuleFor(x => x.Budget).GreaterThanOrEqualTo(0).When(x => x.Budget.HasValue);

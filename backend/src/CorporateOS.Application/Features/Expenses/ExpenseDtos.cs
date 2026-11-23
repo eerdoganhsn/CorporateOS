@@ -1,6 +1,7 @@
 using CorporateOS.Application.Common.Models;
 using CorporateOS.Application.Features.Leave;
 using CorporateOS.Domain.Enums;
+using CorporateOS.Domain.Localization;
 using FluentValidation;
 
 namespace CorporateOS.Application.Features.Expenses;
@@ -56,14 +57,14 @@ public sealed class SaveExpenseRequestValidator : AbstractValidator<SaveExpenseR
         var today = DateOnly.FromDateTime(clock.GetUtcNow().UtcDateTime);
 
         RuleFor(x => x.Category).IsInEnum();
-        RuleFor(x => x.Amount).GreaterThan(0).WithMessage("Amount must be greater than zero.")
-            .LessThanOrEqualTo(1_000_000).WithMessage("Amount cannot exceed 1,000,000.")
-            .PrecisionScale(18, 2, ignoreTrailingZeros: true).WithMessage("Amount can have at most two decimal places.");
-        RuleFor(x => x.Currency).NotEmpty().WithMessage("Currency is required.")
-            .Matches("^[A-Za-z]{3}$").WithMessage("Currency must be a three-letter ISO code (e.g. USD).");
+        RuleFor(x => x.Amount).GreaterThan(0).WithMessage(_ => Text.Get("expense.amountPositive"))
+            .LessThanOrEqualTo(1_000_000).WithMessage(_ => Text.Get("expense.amountMax"))
+            .PrecisionScale(18, 2, ignoreTrailingZeros: true).WithMessage(_ => Text.Get("expense.amountDecimals"));
+        RuleFor(x => x.Currency).NotEmpty().WithMessage(_ => Text.Get("expense.currencyRequired"))
+            .Matches("^[A-Za-z]{3}$").WithMessage(_ => Text.Get("expense.currencyFormat"));
         RuleFor(x => x.ExpenseDate).NotEmpty()
-            .LessThanOrEqualTo(today).WithMessage("Expense date cannot be in the future.")
-            .GreaterThanOrEqualTo(today.AddYears(-1)).WithMessage("Expenses older than one year cannot be claimed.");
+            .LessThanOrEqualTo(today).WithMessage(_ => Text.Get("expense.dateInFuture"))
+            .GreaterThanOrEqualTo(today.AddYears(-1)).WithMessage(_ => Text.Get("expense.dateTooOld"));
         RuleFor(x => x.Description).NotEmpty().MaximumLength(1000);
     }
 }
@@ -76,5 +77,5 @@ public sealed class ApproveExpenseRequestValidator : AbstractValidator<ApproveEx
 public sealed class RejectExpenseRequestValidator : AbstractValidator<RejectExpenseRequest>
 {
     public RejectExpenseRequestValidator() =>
-        RuleFor(x => x.Reason).NotEmpty().WithMessage("A rejection reason is required.").MaximumLength(1000);
+        RuleFor(x => x.Reason).NotEmpty().WithMessage(_ => Text.Get("error.rejectionReasonRequired")).MaximumLength(1000);
 }

@@ -1,6 +1,7 @@
 using CorporateOS.Domain.Common;
 using CorporateOS.Domain.Enums;
 using CorporateOS.Domain.Exceptions;
+using CorporateOS.Domain.Localization;
 
 namespace CorporateOS.Domain.Entities;
 
@@ -22,10 +23,10 @@ public class LeaveRequest : AuditableEntity
 
     public void Approve(int approverEmployeeId, string? note, DateTime now)
     {
-        EnsurePending("approved");
+        EnsurePending("leave.approveNotPending");
         if (approverEmployeeId == EmployeeId)
         {
-            throw new DomainException("You cannot approve your own leave request.");
+            throw new DomainException(Text.Get("leave.cannotApproveOwn"));
         }
 
         Status = LeaveRequestStatus.Approved;
@@ -36,10 +37,10 @@ public class LeaveRequest : AuditableEntity
 
     public void Reject(int approverEmployeeId, string reason, DateTime now)
     {
-        EnsurePending("rejected");
+        EnsurePending("leave.rejectNotPending");
         if (approverEmployeeId == EmployeeId)
         {
-            throw new DomainException("You cannot reject your own leave request.");
+            throw new DomainException(Text.Get("leave.cannotRejectOwn"));
         }
 
         Status = LeaveRequestStatus.Rejected;
@@ -50,15 +51,15 @@ public class LeaveRequest : AuditableEntity
 
     public void Cancel()
     {
-        EnsurePending("cancelled");
+        EnsurePending("leave.cancelNotPending");
         Status = LeaveRequestStatus.Cancelled;
     }
 
-    private void EnsurePending(string verb)
+    private void EnsurePending(string messageKey)
     {
         if (Status != LeaveRequestStatus.Pending)
         {
-            throw new DomainException($"Only pending leave requests can be {verb}. Current status: {Status}.");
+            throw new DomainException(Text.Get(messageKey, Status));
         }
     }
 }
@@ -104,7 +105,7 @@ public class Expense : AuditableEntity
     {
         if (!IsEditable)
         {
-            throw new DomainException($"Only draft or rejected expenses can be submitted. Current status: {Status}.");
+            throw new DomainException(Text.Get("expense.submitNotAllowed", Status));
         }
 
         Status = ExpenseStatus.Submitted;
@@ -116,7 +117,7 @@ public class Expense : AuditableEntity
 
     public void Approve(int approverEmployeeId, string? note, DateTime now)
     {
-        EnsureSubmitted("approved", approverEmployeeId);
+        EnsureSubmitted(approve: true, approverEmployeeId);
         Status = ExpenseStatus.Approved;
         ApprovedById = approverEmployeeId;
         ApprovedAt = now;
@@ -125,7 +126,7 @@ public class Expense : AuditableEntity
 
     public void Reject(int approverEmployeeId, string reason, DateTime now)
     {
-        EnsureSubmitted("rejected", approverEmployeeId);
+        EnsureSubmitted(approve: false, approverEmployeeId);
         Status = ExpenseStatus.Rejected;
         ApprovedById = approverEmployeeId;
         ApprovedAt = now;
@@ -136,23 +137,23 @@ public class Expense : AuditableEntity
     {
         if (Status != ExpenseStatus.Approved)
         {
-            throw new DomainException("Only approved expenses can be marked as paid.");
+            throw new DomainException(Text.Get("expense.onlyApprovedPaid"));
         }
 
         Status = ExpenseStatus.Paid;
         PaidAt = now;
     }
 
-    private void EnsureSubmitted(string verb, int approverEmployeeId)
+    private void EnsureSubmitted(bool approve, int approverEmployeeId)
     {
         if (Status != ExpenseStatus.Submitted)
         {
-            throw new DomainException($"Only submitted expenses can be {verb}. Current status: {Status}.");
+            throw new DomainException(Text.Get(approve ? "expense.approveNotSubmitted" : "expense.rejectNotSubmitted", Status));
         }
 
         if (approverEmployeeId == EmployeeId)
         {
-            throw new DomainException($"Your own expenses cannot be {verb} by you.");
+            throw new DomainException(Text.Get(approve ? "expense.cannotApproveOwn" : "expense.cannotRejectOwn"));
         }
     }
 }

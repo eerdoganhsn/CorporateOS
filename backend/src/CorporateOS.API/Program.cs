@@ -2,13 +2,14 @@ using System.Globalization;
 using CorporateOS.API.Configuration;
 using CorporateOS.Application;
 using CorporateOS.Infrastructure;
-using FluentValidation;
+using CorporateOS.Domain.Localization;
 using Serilog;
 
-// The API speaks English regardless of the host machine's locale (validation messages, formatting).
+// Formatting/parsing is culture-invariant regardless of the host machine's locale. Messages follow the
+// UI culture, which UseRequestLanguage sets per request from Accept-Language (default: Turkish).
+// FluentValidation's built-in messages use the same UI culture.
 CultureInfo.DefaultThreadCurrentCulture = CultureInfo.InvariantCulture;
-CultureInfo.DefaultThreadCurrentUICulture = CultureInfo.GetCultureInfo("en-US");
-ValidatorOptions.Global.LanguageManager.Culture = CultureInfo.GetCultureInfo("en-US");
+CultureInfo.DefaultThreadCurrentUICulture = Languages.Culture(Languages.Default);
 
 Log.Logger = new LoggerConfiguration().WriteTo.Console().CreateLogger();
 
@@ -31,6 +32,7 @@ try
 
     var app = builder.Build();
 
+    app.UseRequestLanguage();
     app.UseExceptionHandler();
     app.UseSecurityHeaders();
     app.UseSerilogRequestLogging();

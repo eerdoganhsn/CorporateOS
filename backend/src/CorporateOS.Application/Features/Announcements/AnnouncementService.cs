@@ -5,6 +5,7 @@ using CorporateOS.Application.Common.Interfaces;
 using CorporateOS.Application.Common.Models;
 using CorporateOS.Domain.Entities;
 using CorporateOS.Domain.Enums;
+using CorporateOS.Domain.Localization;
 using Microsoft.EntityFrameworkCore;
 
 namespace CorporateOS.Application.Features.Announcements;
@@ -175,7 +176,7 @@ public sealed class AnnouncementService(
         if (request.TargetType == AnnouncementTarget.SpecificDepartment &&
             !await db.Departments.AnyAsync(d => d.Id == request.DepartmentId, cancellationToken))
         {
-            throw new RequestValidationException("departmentId", "The selected department does not exist.");
+            throw new RequestValidationException("departmentId", Text.Get("error.departmentNotFound"));
         }
     }
 

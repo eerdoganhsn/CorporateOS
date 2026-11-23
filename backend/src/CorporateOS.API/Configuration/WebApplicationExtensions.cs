@@ -1,7 +1,10 @@
+using System.Globalization;
+using CorporateOS.Domain.Localization;
 using CorporateOS.Infrastructure.Persistence.Seed;
 using CorporateOS.Infrastructure.Services;
 using Microsoft.Data.SqlClient;
 using Microsoft.Extensions.FileProviders;
+using Microsoft.Net.Http.Headers;
 
 namespace CorporateOS.API.Configuration;
 
@@ -52,6 +55,39 @@ public static class WebApplicationExtensions
     /// <summary>Errors raised while SQL Server is still starting or unreachable; anything else fails fast.</summary>
     private static bool IsConnectionFailure(SqlException ex) =>
         ex.Number is -2 or 2 or 53 or 233 or 4060 or 10053 or 10054 or 10060 or 10061 or 18456 or 40613;
+
+    /// <summary>
+    /// Sets the request's UI culture from <c>Accept-Language</c> (tr, en or de; anything else falls back to
+    /// Turkish). Only CurrentUICulture changes — it selects the message catalog — while CurrentCulture stays
+    /// invariant so parsing and formatting never depend on the caller. Registered first so that the exception
+    /// handler, which runs outside the inner pipeline's execution context, also sees the request language.
+    /// </summary>
+    public static void UseRequestLanguage(this WebApplication app)
+    {
+        app.Use(async (context, next) =>
+        {
+            var language = PreferredLanguage(context.Request);
+            CultureInfo.CurrentUICulture = Languages.Culture(language);
+            // Written when the response starts: the exception handler clears headers set earlier.
+            context.Response.OnStarting(() =>
+            {
+                context.Response.Headers.ContentLanguage = language;
+                context.Response.Headers.Append(HeaderNames.Vary, HeaderNames.AcceptLanguage);
+                return Task.CompletedTask;
+            });
+            await next();
+        });
+    }
+
+    private static string PreferredLanguage(HttpRequest request)
+    {
+        var accepted = request.GetTypedHeaders().AcceptLanguage;
+        var match = accepted
+            .OrderByDescending(v => v.Quality ?? 1)
+            .Select(v => v.Value.Value)
+            .FirstOrDefault(Languages.IsSupportedTag);
+        return Languages.Normalize(match);
+    }
 
     public static void UseSecurityHeaders(this WebApplication app)
     {

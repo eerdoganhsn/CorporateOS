@@ -7,6 +7,7 @@ using CorporateOS.Application.Common.Interfaces;
 using CorporateOS.Application.Common.Models;
 using CorporateOS.Domain.Entities;
 using CorporateOS.Domain.Enums;
+using CorporateOS.Domain.Localization;
 using FluentValidation;
 using Microsoft.EntityFrameworkCore;
 
@@ -56,7 +57,7 @@ public abstract class DocumentMetadataValidator<T> : AbstractValidator<T> where 
         RuleFor(x => x.Category).IsInEnum();
         RuleFor(x => x.AccessLevel).IsInEnum();
         RuleFor(x => x.DepartmentId).NotNull().When(x => x.AccessLevel == DocumentAccessLevel.DepartmentOnly)
-            .WithMessage("Department-only documents require a department.");
+            .WithMessage(_ => Text.Get("document.departmentRequired"));
     }
 }
 
@@ -114,7 +115,7 @@ public sealed class DocumentService(
         if (dto is null)
         {
             throw await db.Documents.AnyAsync(d => d.Id == id, cancellationToken)
-                ? new ForbiddenException("You do not have access to this document.")
+                ? new ForbiddenException(Text.Get("document.noAccess"))
                 : new NotFoundException("Document", id);
         }
 
@@ -173,12 +174,12 @@ public sealed class DocumentService(
         if (document is null)
         {
             throw await db.Documents.AnyAsync(d => d.Id == id, cancellationToken)
-                ? new ForbiddenException("You do not have access to this document.")
+                ? new ForbiddenException(Text.Get("document.noAccess"))
                 : new NotFoundException("Document", id);
         }
 
         var stream = await storage.OpenReadAsync(document.FilePath, cancellationToken)
-                     ?? throw new NotFoundException("The document file is missing from storage.");
+                     ?? throw new NotFoundException(Text.Get("error.fileMissing"));
 
         audit.Record("Document.Downloaded", nameof(Document), id.ToString());
         await db.SaveChangesAsync(cancellationToken);
@@ -233,7 +234,7 @@ public sealed class DocumentService(
     {
         if (request.DepartmentId.HasValue && !await db.Departments.AnyAsync(d => d.Id == request.DepartmentId, cancellationToken))
         {
-            throw new RequestValidationException("departmentId", "The selected department does not exist.");
+            throw new RequestValidationException("departmentId", Text.Get("error.departmentNotFound"));
         }
     }
 

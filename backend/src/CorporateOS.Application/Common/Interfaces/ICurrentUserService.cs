@@ -1,4 +1,5 @@
 using CorporateOS.Application.Common.Exceptions;
+using CorporateOS.Domain.Localization;
 using RoleNames = CorporateOS.Domain.Constants.Roles;
 
 namespace CorporateOS.Application.Common.Interfaces;
@@ -36,7 +37,7 @@ public sealed record UserScope(
     public string PrimaryRole => RoleNames.All.FirstOrDefault(Roles.Contains) ?? RoleNames.Employee;
 
     public int RequireEmployeeId() =>
-        EmployeeId ?? throw new ForbiddenException("Your account is not linked to an employee profile.");
+        EmployeeId ?? throw new ForbiddenException(Text.Get("error.noEmployeeProfile"));
 
     /// <summary>True for a manager acting on their own department.</summary>
     public bool ManagesDepartment(int? departmentId) =>

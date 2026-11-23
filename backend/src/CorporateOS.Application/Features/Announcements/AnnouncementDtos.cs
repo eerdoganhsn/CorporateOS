@@ -1,5 +1,6 @@
 using CorporateOS.Application.Common.Models;
 using CorporateOS.Domain.Enums;
+using CorporateOS.Domain.Localization;
 using FluentValidation;
 
 namespace CorporateOS.Application.Features.Announcements;
@@ -57,9 +58,9 @@ public sealed class SaveAnnouncementRequestValidator : AbstractValidator<SaveAnn
         RuleFor(x => x.Priority).IsInEnum();
         RuleFor(x => x.TargetType).IsInEnum();
         RuleFor(x => x.DepartmentId).NotNull().When(x => x.TargetType == AnnouncementTarget.SpecificDepartment)
-            .WithMessage("Select the department this announcement targets.");
+            .WithMessage(_ => Text.Get("announcement.departmentRequired"));
         RuleFor(x => x.ExpireDate)
             .GreaterThan(x => x.PublishDate ?? DateTime.UtcNow).When(x => x.ExpireDate.HasValue)
-            .WithMessage("Expiry must be after the publish date.");
+            .WithMessage(_ => Text.Get("announcement.expiryAfterPublish"));
     }
 }

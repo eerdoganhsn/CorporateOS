@@ -2,6 +2,7 @@ using CorporateOS.API.Configuration;
 using CorporateOS.Application.Common.Exceptions;
 using CorporateOS.Application.Common.Models;
 using CorporateOS.Application.Features.Auth;
+using CorporateOS.Domain.Localization;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
@@ -36,7 +37,7 @@ public sealed class AuthController(IAuthService authService, IOptions<AuthCookie
         var token = Request.Cookies[cookieOptions.Value.Name];
         if (string.IsNullOrEmpty(token))
         {
-            throw new UnauthorizedException("No active session.");
+            throw new UnauthorizedException(Text.Get("auth.noSession"));
         }
 
         try

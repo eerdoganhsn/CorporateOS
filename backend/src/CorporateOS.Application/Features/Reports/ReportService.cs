@@ -4,6 +4,7 @@ using CorporateOS.Application.Common.Extensions;
 using CorporateOS.Application.Common.Interfaces;
 using CorporateOS.Application.Common.Models;
 using CorporateOS.Domain.Enums;
+using CorporateOS.Domain.Localization;
 using Microsoft.EntityFrameworkCore;
 using C = CorporateOS.Application.Features.Reports.ReportColumnType;
 
@@ -25,12 +26,12 @@ public sealed class ReportService(IApplicationDbContext db, ICurrentUserService 
         var scope = await currentUser.GetScopeAsync(cancellationToken);
         if (!scope.IsManagerOrAbove)
         {
-            throw new ForbiddenException("Reports are available to managers and administrators.");
+            throw new ForbiddenException(Text.Get("report.forbidden"));
         }
 
         if (filter.From > filter.To)
         {
-            throw new RequestValidationException("to", "The end date cannot be earlier than the start date.");
+            throw new RequestValidationException("to", Text.Get("report.endBeforeStart"));
         }
 
         string? scopeLabel = null;
@@ -49,7 +50,7 @@ public sealed class ReportService(IApplicationDbContext db, ICurrentUserService 
             ReportType.Tasks => await TasksAsync(filter, cancellationToken),
             ReportType.Leave => await LeaveAsync(filter, cancellationToken),
             ReportType.Expenses => await ExpensesAsync(filter, cancellationToken),
-            _ => throw new NotFoundException($"Report '{type}' does not exist.")
+            _ => throw new NotFoundException("Report", type)
         };
 
         return result with { Scope = scopeLabel ?? "All departments" };

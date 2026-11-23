@@ -8,6 +8,7 @@ using CorporateOS.Application.Common.Options;
 using CorporateOS.Domain.Constants;
 using CorporateOS.Domain.Entities;
 using CorporateOS.Domain.Enums;
+using CorporateOS.Domain.Localization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 
@@ -52,7 +53,7 @@ public sealed class EmployeeService(
         var scope = await currentUser.GetScopeAsync(cancellationToken);
         if (!scope.IsManagerOrAbove)
         {
-            throw new ForbiddenException("Only managers and administrators can browse employee records.");
+            throw new ForbiddenException(Text.Get("employee.browseForbidden"));
         }
 
         var search = query.Search?.Trim();
@@ -141,12 +142,12 @@ public sealed class EmployeeService(
         {
             if (Roles.Privileged.Contains(request.Role!) && !scope.IsSuperAdmin)
             {
-                throw new ForbiddenException("Only a SuperAdmin can grant administrator roles.");
+                throw new ForbiddenException(Text.Get("employee.adminRoleForbidden"));
             }
 
             if (await userManager.FindByEmailAsync(request.Email) is not null)
             {
-                throw new ConflictException($"A user account with email '{request.Email}' already exists.");
+                throw new ConflictException(Text.Get("employee.accountEmailExists", request.Email));
             }
         }
 
@@ -199,7 +200,7 @@ public sealed class EmployeeService(
 
         if (request.ManagerId == id)
         {
-            throw new RequestValidationException("managerId", "An employee cannot be their own manager.");
+            throw new RequestValidationException("managerId", Text.Get("employee.ownManager"));
         }
 
         var before = Snapshot(employee);
@@ -213,7 +214,7 @@ public sealed class EmployeeService(
             {
                 if (await userManager.FindByEmailAsync(employee.Email) is { } other && other.Id != employee.User.Id)
                 {
-                    throw new ConflictException($"A user account with email '{employee.Email}' already exists.");
+                    throw new ConflictException(Text.Get("employee.accountEmailExists", employee.Email));
                 }
 
                 employee.User.Email = employee.Email;
@@ -240,7 +241,7 @@ public sealed class EmployeeService(
         var scope = await currentUser.GetScopeAsync(cancellationToken);
         if (scope.EmployeeId == id && status is EmployeeStatus.Inactive or EmployeeStatus.Terminated)
         {
-            throw new Domain.Exceptions.DomainException("You cannot deactivate your own employee record.");
+            throw new Domain.Exceptions.DomainException(Text.Get("employee.cannotDeactivateSelf"));
         }
 
         var previous = employee.Status;
@@ -266,12 +267,12 @@ public sealed class EmployeeService(
         var scope = await currentUser.GetScopeAsync(cancellationToken);
         if (scope.EmployeeId == id)
         {
-            throw new Domain.Exceptions.DomainException("You cannot delete your own employee record.");
+            throw new Domain.Exceptions.DomainException(Text.Get("employee.cannotDeleteSelf"));
         }
 
         if (await db.Departments.AnyAsync(d => d.ManagerId == id, cancellationToken))
         {
-            throw new ConflictException("This employee manages a department. Assign a new department manager first.");
+            throw new ConflictException(Text.Get("employee.managesDepartment"));
         }
 
         employee.Status = EmployeeStatus.Terminated;
@@ -286,7 +287,7 @@ public sealed class EmployeeService(
         var scope = await currentUser.GetScopeAsync(cancellationToken);
         if (!scope.IsAdmin && scope.EmployeeId != id)
         {
-            throw new ForbiddenException("You can only change your own profile image.");
+            throw new ForbiddenException(Text.Get("employee.ownImageOnly"));
         }
 
         var employee = await db.Employees.FirstOrDefaultAsync(e => e.Id == id, cancellationToken)
@@ -354,7 +355,7 @@ public sealed class EmployeeService(
             return;
         }
 
-        throw new ForbiddenException("You do not have access to this employee record.");
+        throw new ForbiddenException(Text.Get("employee.noAccess"));
     }
 
     private async Task SyncAccountStatusAsync(Employee employee, CancellationToken cancellationToken)
@@ -388,28 +389,28 @@ public sealed class EmployeeService(
 
         if (await db.Employees.AnyAsync(e => e.EmployeeNumber == number && e.Id != excludeId, cancellationToken))
         {
-            throw new ConflictException($"Employee number '{number}' is already in use.");
+            throw new ConflictException(Text.Get("employee.numberInUse", number));
         }
 
         if (await db.Employees.AnyAsync(e => e.Email == email && e.Id != excludeId, cancellationToken))
         {
-            throw new ConflictException($"An employee with email '{email}' already exists.");
+            throw new ConflictException(Text.Get("employee.emailInUse", email));
         }
 
         var errors = new Dictionary<string, string[]>();
         if (!await db.Departments.AnyAsync(d => d.Id == request.DepartmentId, cancellationToken))
         {
-            errors["departmentId"] = ["The selected department does not exist."];
+            errors["departmentId"] = [Text.Get("error.departmentNotFound")];
         }
 
         if (!await db.Positions.AnyAsync(p => p.Id == request.PositionId, cancellationToken))
         {
-            errors["positionId"] = ["The selected position does not exist."];
+            errors["positionId"] = [Text.Get("error.positionNotFound")];
         }
 
         if (request.ManagerId.HasValue && !await db.Employees.AnyAsync(e => e.Id == request.ManagerId, cancellationToken))
         {
-            errors["managerId"] = ["The selected manager does not exist."];
+            errors["managerId"] = [Text.Get("error.managerNotFound")];
         }
 
         if (errors.Count > 0)

@@ -1,6 +1,7 @@
 using CorporateOS.Application.Common.Exceptions;
 using CorporateOS.Application.Common.Models;
 using CorporateOS.Domain.Exceptions;
+using CorporateOS.Domain.Localization;
 using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
@@ -23,12 +24,12 @@ public sealed class GlobalExceptionHandler(ILogger<GlobalExceptionHandler> logge
             ForbiddenException e => (StatusCodes.Status403Forbidden, e.Message, null),
             NotFoundException e => (StatusCodes.Status404NotFound, e.Message, null),
             ConflictException e => (StatusCodes.Status409Conflict, e.Message, null),
-            DbUpdateConcurrencyException => (StatusCodes.Status409Conflict, "The record was changed by someone else. Reload and try again.", null),
-            DbUpdateException e when IsUniqueViolation(e) => (StatusCodes.Status409Conflict, "A record with the same unique value already exists.", null),
+            DbUpdateConcurrencyException => (StatusCodes.Status409Conflict, Text.Get("error.concurrency"), null),
+            DbUpdateException e when IsUniqueViolation(e) => (StatusCodes.Status409Conflict, Text.Get("error.uniqueViolation"), null),
             DomainException e => (StatusCodes.Status422UnprocessableEntity, e.Message, null),
             BadHttpRequestException e => (e.StatusCode, e.Message, null),
             _ => (StatusCodes.Status500InternalServerError,
-                environment.IsDevelopment() ? exception.Message : "An unexpected error occurred.",
+                environment.IsDevelopment() ? exception.Message : Text.Get("error.unexpected"),
                 (IDictionary<string, string[]>?)null)
         };
 

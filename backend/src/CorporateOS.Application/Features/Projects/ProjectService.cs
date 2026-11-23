@@ -6,6 +6,7 @@ using CorporateOS.Application.Common.Models;
 using CorporateOS.Application.Common.Options;
 using CorporateOS.Domain.Entities;
 using CorporateOS.Domain.Enums;
+using CorporateOS.Domain.Localization;
 using Microsoft.EntityFrameworkCore;
 
 namespace CorporateOS.Application.Features.Projects;
@@ -80,7 +81,7 @@ public sealed class ProjectService(
 
         if (!await db.Projects.Where(p => p.Id == id).AnyAsync(ProjectAccess.VisibleProjects(scope), cancellationToken))
         {
-            throw new ForbiddenException("You do not have access to this project.");
+            throw new ForbiddenException(Text.Get("project.noAccess"));
         }
 
         var members = await db.ProjectMembers.AsNoTracking()
@@ -160,7 +161,7 @@ public sealed class ProjectService(
                       ?? throw new NotFoundException("Project", id);
         if (!ProjectAccess.CanManageProject(scope, project))
         {
-            throw new ForbiddenException("Only administrators and the project manager can edit this project.");
+            throw new ForbiddenException(Text.Get("project.editForbidden"));
         }
 
         await ValidateAsync(request, id, cancellationToken);
@@ -207,16 +208,16 @@ public sealed class ProjectService(
     {
         var project = await GetManageableAsync(id, cancellationToken);
         var employee = await db.Employees.FirstOrDefaultAsync(e => e.Id == request.EmployeeId, cancellationToken)
-                       ?? throw new RequestValidationException("employeeId", "The selected employee does not exist.");
+                       ?? throw new RequestValidationException("employeeId", Text.Get("error.employeeNotFound"));
 
         if (employee.Status is EmployeeStatus.Terminated or EmployeeStatus.Inactive)
         {
-            throw new Domain.Exceptions.DomainException("Inactive employees cannot be added to a project.");
+            throw new Domain.Exceptions.DomainException(Text.Get("project.inactiveMember"));
         }
 
         if (await db.ProjectMembers.AnyAsync(m => m.ProjectId == id && m.EmployeeId == request.EmployeeId, cancellationToken))
         {
-            throw new ConflictException($"{employee.FullName} is already a member of this project.");
+            throw new ConflictException(Text.Get("project.alreadyMember", employee.FullName));
         }
 
         var role = string.IsNullOrWhiteSpace(request.Role) ? "Member" : request.Role.Trim();
@@ -234,11 +235,11 @@ public sealed class ProjectService(
         var project = await GetManageableAsync(id, cancellationToken);
         var member = await db.ProjectMembers.Include(m => m.Employee)
                          .FirstOrDefaultAsync(m => m.ProjectId == id && m.EmployeeId == employeeId, cancellationToken)
-                     ?? throw new NotFoundException("Project member", employeeId);
+                     ?? throw new NotFoundException("ProjectMember", employeeId);
 
         if (project.ProjectManagerId == employeeId)
         {
-            throw new Domain.Exceptions.DomainException("Assign a different project manager before removing this member.");
+            throw new Domain.Exceptions.DomainException(Text.Get("project.removeManager"));
         }
 
         db.ProjectMembers.Remove(member);
@@ -254,7 +255,7 @@ public sealed class ProjectService(
         var scope = await currentUser.GetScopeAsync(cancellationToken);
         if (!await db.Projects.Where(p => p.Id == id).AnyAsync(ProjectAccess.VisibleProjects(scope), cancellationToken))
         {
-            throw new ForbiddenException("You do not have access to this project.");
+            throw new ForbiddenException(Text.Get("project.noAccess"));
         }
 
         var projectId = id.ToString();
@@ -273,7 +274,7 @@ public sealed class ProjectService(
                       ?? throw new NotFoundException("Project", id);
         if (!ProjectAccess.CanManageProject(scope, project))
         {
-            throw new ForbiddenException("Only administrators and the project manager can change project membership.");
+            throw new ForbiddenException(Text.Get("project.membershipForbidden"));
         }
 
         return project;
@@ -284,17 +285,17 @@ public sealed class ProjectService(
         var code = request.ProjectCode.Trim().ToUpperInvariant();
         if (await db.Projects.AnyAsync(p => p.ProjectCode == code && p.Id != excludeId, cancellationToken))
         {
-            throw new ConflictException($"Project code '{code}' is already in use.");
+            throw new ConflictException(Text.Get("project.codeInUse", code));
         }
 
         if (request.ProjectManagerId.HasValue && !await db.Employees.AnyAsync(e => e.Id == request.ProjectManagerId, cancellationToken))
         {
-            throw new RequestValidationException("projectManagerId", "The selected project manager does not exist.");
+            throw new RequestValidationException("projectManagerId", Text.Get("error.projectManagerNotFound"));
         }
 
         if (request.DepartmentId.HasValue && !await db.Departments.AnyAsync(d => d.Id == request.DepartmentId, cancellationToken))
         {
-            throw new RequestValidationException("departmentId", "The selected department does not exist.");
+            throw new RequestValidationException("departmentId", Text.Get("error.departmentNotFound"));
         }
     }
 

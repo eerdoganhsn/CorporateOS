@@ -1,3 +1,4 @@
+using CorporateOS.Domain.Localization;
 using FluentValidation;
 
 namespace CorporateOS.Application.Features.Auth;
@@ -20,7 +21,8 @@ public sealed record AuthUserDto(
     int? DepartmentId,
     string? DepartmentName,
     string? PositionTitle,
-    string? ProfileImageUrl);
+    string? ProfileImageUrl,
+    string Language);
 
 public sealed record AuthResponse(string AccessToken, DateTime AccessTokenExpiresAt, AuthUserDto User);
 
@@ -51,7 +53,7 @@ public sealed class ResetPasswordRequestValidator : AbstractValidator<ResetPassw
         RuleFor(x => x.Email).NotEmpty().EmailAddress();
         RuleFor(x => x.Token).NotEmpty();
         RuleFor(x => x.NewPassword).NotEmpty().MinimumLength(8).MaximumLength(128);
-        RuleFor(x => x.ConfirmPassword).Equal(x => x.NewPassword).WithMessage("Passwords do not match.");
+        RuleFor(x => x.ConfirmPassword).Equal(x => x.NewPassword).WithMessage(_ => Text.Get("auth.passwordsDoNotMatch"));
     }
 }
 
@@ -61,7 +63,7 @@ public sealed class ChangePasswordRequestValidator : AbstractValidator<ChangePas
     {
         RuleFor(x => x.CurrentPassword).NotEmpty();
         RuleFor(x => x.NewPassword).NotEmpty().MinimumLength(8).MaximumLength(128)
-            .NotEqual(x => x.CurrentPassword).WithMessage("The new password must differ from the current password.");
-        RuleFor(x => x.ConfirmPassword).Equal(x => x.NewPassword).WithMessage("Passwords do not match.");
+            .NotEqual(x => x.CurrentPassword).WithMessage(_ => Text.Get("auth.newPasswordSame"));
+        RuleFor(x => x.ConfirmPassword).Equal(x => x.NewPassword).WithMessage(_ => Text.Get("auth.passwordsDoNotMatch"));
     }
 }

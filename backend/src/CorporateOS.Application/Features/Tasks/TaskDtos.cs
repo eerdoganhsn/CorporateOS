@@ -1,5 +1,6 @@
 using CorporateOS.Application.Common.Models;
 using CorporateOS.Domain.Enums;
+using CorporateOS.Domain.Localization;
 using FluentValidation;
 
 namespace CorporateOS.Application.Features.Tasks;
@@ -94,13 +95,13 @@ public sealed class CreateTaskRequestValidator : AbstractValidator<CreateTaskReq
     public CreateTaskRequestValidator(TimeProvider clock)
     {
         var today = DateOnly.FromDateTime(clock.GetUtcNow().UtcDateTime);
-        RuleFor(x => x.ProjectId).GreaterThan(0).WithMessage("Project is required.");
+        RuleFor(x => x.ProjectId).GreaterThan(0).WithMessage(_ => Text.Get("task.projectRequired"));
         RuleFor(x => x.Title).NotEmpty().MaximumLength(200);
         RuleFor(x => x.Description).MaximumLength(4000);
         RuleFor(x => x.Status).IsInEnum();
         RuleFor(x => x.Priority).IsInEnum();
         RuleFor(x => x.DueDate).GreaterThanOrEqualTo(today).When(x => x.DueDate.HasValue)
-            .WithMessage("Due date cannot be in the past.");
+            .WithMessage(_ => Text.Get("task.dueInPast"));
         RuleFor(x => x.EstimatedHours).InclusiveBetween(0, 10_000).When(x => x.EstimatedHours.HasValue);
     }
 }
@@ -113,7 +114,7 @@ public sealed class UpdateTaskRequestValidator : AbstractValidator<UpdateTaskReq
         RuleFor(x => x.Description).MaximumLength(4000);
         RuleFor(x => x.Status).IsInEnum();
         RuleFor(x => x.Priority).IsInEnum();
-        RuleFor(x => x.DueDate).GreaterThan(new DateOnly(2000, 1, 1)).When(x => x.DueDate.HasValue).WithMessage("Due date is not valid.");
+        RuleFor(x => x.DueDate).GreaterThan(new DateOnly(2000, 1, 1)).When(x => x.DueDate.HasValue).WithMessage(_ => Text.Get("task.dueInvalid"));
         RuleFor(x => x.EstimatedHours).InclusiveBetween(0, 10_000).When(x => x.EstimatedHours.HasValue);
         RuleFor(x => x.ActualHours).InclusiveBetween(0, 10_000).When(x => x.ActualHours.HasValue);
         RuleFor(x => x.ProgressPercentage).InclusiveBetween(0, 100);

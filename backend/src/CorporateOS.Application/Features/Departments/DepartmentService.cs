@@ -5,6 +5,7 @@ using CorporateOS.Application.Common.Models;
 using CorporateOS.Application.Common.Options;
 using CorporateOS.Domain.Entities;
 using CorporateOS.Domain.Enums;
+using CorporateOS.Domain.Localization;
 using Microsoft.EntityFrameworkCore;
 
 namespace CorporateOS.Application.Features.Departments;
@@ -65,7 +66,7 @@ public sealed class DepartmentService(
         var scope = await currentUser.GetScopeAsync(cancellationToken);
         if (!scope.IsAdmin && !scope.ManagesDepartment(id))
         {
-            throw new ForbiddenException("You can only view your own department.");
+            throw new ForbiddenException(Text.Get("department.viewOwnOnly"));
         }
 
         var department = await db.Departments.AsNoTracking()
@@ -166,7 +167,7 @@ public sealed class DepartmentService(
         if (request.Status == RecordStatus.Inactive && department.Status == RecordStatus.Active &&
             await db.Employees.AnyAsync(e => e.DepartmentId == id && e.Status == EmployeeStatus.Active, cancellationToken))
         {
-            throw new Domain.Exceptions.DomainException("A department with active employees cannot be deactivated.");
+            throw new Domain.Exceptions.DomainException(Text.Get("department.hasActiveEmployees"));
         }
 
         var before = Snapshot(department);
@@ -188,7 +189,7 @@ public sealed class DepartmentService(
 
         if (await db.Employees.AnyAsync(e => e.DepartmentId == id, cancellationToken))
         {
-            throw new ConflictException("The department still has employees. Reassign them before deleting it.");
+            throw new ConflictException(Text.Get("department.hasEmployees"));
         }
 
         db.Departments.Remove(department); // soft delete via interceptor
@@ -202,12 +203,12 @@ public sealed class DepartmentService(
         var name = request.Name.Trim();
         if (await db.Departments.AnyAsync(d => d.Code == code && d.Id != excludeId, cancellationToken))
         {
-            throw new ConflictException($"Department code '{code}' is already in use.");
+            throw new ConflictException(Text.Get("department.codeInUse", code));
         }
 
         if (await db.Departments.AnyAsync(d => d.Name == name && d.Id != excludeId, cancellationToken))
         {
-            throw new ConflictException($"A department named '{name}' already exists.");
+            throw new ConflictException(Text.Get("department.nameInUse", name));
         }
     }
 
@@ -215,7 +216,7 @@ public sealed class DepartmentService(
     {
         if (managerId.HasValue && !await db.Employees.AnyAsync(e => e.Id == managerId, cancellationToken))
         {
-            throw new RequestValidationException("managerId", "The selected manager does not exist.");
+            throw new RequestValidationException("managerId", Text.Get("error.managerNotFound"));
         }
     }
 

@@ -6,6 +6,7 @@ using CorporateOS.Application.Common.Models;
 using CorporateOS.Domain.Constants;
 using CorporateOS.Domain.Entities;
 using CorporateOS.Domain.Exceptions;
+using CorporateOS.Domain.Localization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 
@@ -172,12 +173,12 @@ public sealed class UserAdminService(
 
         if (!scope.IsSuperAdmin && toAdd.Concat(toRemove).Any(Roles.Privileged.Contains))
         {
-            throw new ForbiddenException("Only a SuperAdmin can grant or revoke administrator roles.");
+            throw new ForbiddenException(Text.Get("user.adminRolesForbidden"));
         }
 
         if (user.Id == scope.UserId && toRemove.Contains(Roles.SuperAdmin))
         {
-            throw new DomainException("You cannot remove your own SuperAdmin role.");
+            throw new DomainException(Text.Get("user.cannotRemoveOwnSuperAdmin"));
         }
 
         if (toRemove.Contains(Roles.SuperAdmin))
@@ -249,13 +250,13 @@ public sealed class UserAdminService(
 
         if (!allowSelf && user.Id == scope.UserId)
         {
-            throw new DomainException("Use your profile to manage your own account.");
+            throw new DomainException(Text.Get("user.useProfile"));
         }
 
         var roles = await userManager.GetRolesAsync(user);
         if (!scope.IsSuperAdmin && roles.Any(Roles.Privileged.Contains))
         {
-            throw new ForbiddenException("Only a SuperAdmin can manage administrator accounts.");
+            throw new ForbiddenException(Text.Get("user.manageAdminsForbidden"));
         }
 
         return (user, scope);
@@ -271,7 +272,7 @@ public sealed class UserAdminService(
         var activeSuperAdmins = (await userManager.GetUsersInRoleAsync(Roles.SuperAdmin)).Count(u => u.IsActive && u.Id != user.Id);
         if (activeSuperAdmins == 0)
         {
-            throw new DomainException("At least one active SuperAdmin must remain.");
+            throw new DomainException(Text.Get("user.lastSuperAdmin"));
         }
     }
 

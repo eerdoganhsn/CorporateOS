@@ -1,5 +1,6 @@
 using CorporateOS.API.Authorization;
 using CorporateOS.Application.Common.Models;
+using CorporateOS.Application.Features.Auth;
 using CorporateOS.Application.Features.Dashboard;
 using CorporateOS.Application.Features.Notifications;
 using CorporateOS.Application.Features.Profile;
@@ -67,6 +68,11 @@ public sealed class ProfileController(IProfileService profile) : ApiControllerBa
     [RequestSizeLimit(3 * 1024 * 1024)]
     public async Task<ActionResult<ApiResponse<string>>> UploadAvatar(IFormFile file, CancellationToken ct) =>
         OkResponse(await profile.UploadAvatarAsync(ToUpload(file), ct));
+
+    /// <summary>Saves the preferred language (tr, en or de) used for the UI, e-mails and notifications.</summary>
+    [HttpPut("language")]
+    public async Task<ActionResult<ApiResponse<AuthUserDto>>> UpdateLanguage(UpdateLanguageRequest request, CancellationToken ct) =>
+        OkResponse(await profile.UpdateLanguageAsync(request, ct));
 }
 
 [Route("api/search")]

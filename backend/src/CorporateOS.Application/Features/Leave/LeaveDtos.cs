@@ -1,5 +1,6 @@
 using CorporateOS.Application.Common.Models;
 using CorporateOS.Domain.Enums;
+using CorporateOS.Domain.Localization;
 using FluentValidation;
 
 namespace CorporateOS.Application.Features.Leave;
@@ -91,16 +92,16 @@ public sealed class CreateLeaveRequestValidator : AbstractValidator<CreateLeaveR
     {
         var today = DateOnly.FromDateTime(clock.GetUtcNow().UtcDateTime);
 
-        RuleFor(x => x.LeaveType).IsInEnum().WithMessage("Leave type is required.");
+        RuleFor(x => x.LeaveType).IsInEnum().WithMessage(_ => Text.Get("leave.typeRequired"));
         RuleFor(x => x.StartDate).NotEmpty()
-            .GreaterThanOrEqualTo(today.AddDays(-30)).WithMessage("Leave cannot start more than 30 days in the past.");
+            .GreaterThanOrEqualTo(today.AddDays(-30)).WithMessage(_ => Text.Get("leave.startTooOld"));
         RuleFor(x => x.EndDate).NotEmpty()
-            .GreaterThanOrEqualTo(x => x.StartDate).WithMessage("End date cannot be earlier than start date.");
+            .GreaterThanOrEqualTo(x => x.StartDate).WithMessage(_ => Text.Get("error.endBeforeStart"));
         RuleFor(x => x).Must(x => x.EndDate.DayNumber - x.StartDate.DayNumber <= 365)
-            .WithName("endDate").WithMessage("A single request cannot exceed one year.");
+            .WithName("endDate").WithMessage(_ => Text.Get("leave.tooLong"));
         RuleFor(x => x.Reason).MaximumLength(1000);
         RuleFor(x => x.Reason).NotEmpty().When(x => x.LeaveType == LeaveType.Other)
-            .WithMessage("Please describe the reason for this leave type.");
+            .WithMessage(_ => Text.Get("leave.reasonRequired"));
         RuleFor(x => x.EmployeeId).GreaterThan(0).When(x => x.EmployeeId.HasValue);
     }
 }
@@ -113,7 +114,7 @@ public sealed class ApproveLeaveRequestValidator : AbstractValidator<ApproveLeav
 public sealed class RejectLeaveRequestValidator : AbstractValidator<RejectLeaveRequest>
 {
     public RejectLeaveRequestValidator() =>
-        RuleFor(x => x.Reason).NotEmpty().WithMessage("A rejection reason is required.").MaximumLength(1000);
+        RuleFor(x => x.Reason).NotEmpty().WithMessage(_ => Text.Get("error.rejectionReasonRequired")).MaximumLength(1000);
 }
 
 public sealed class UpdateLeaveBalanceRequestValidator : AbstractValidator<UpdateLeaveBalanceRequest>

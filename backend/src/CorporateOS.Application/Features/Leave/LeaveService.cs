@@ -7,6 +7,7 @@ using CorporateOS.Domain.Constants;
 using CorporateOS.Domain.Entities;
 using CorporateOS.Domain.Enums;
 using CorporateOS.Domain.Exceptions;
+using CorporateOS.Domain.Localization;
 using CorporateOS.Domain.Rules;
 using Microsoft.EntityFrameworkCore;
 
@@ -89,8 +90,8 @@ public sealed class LeaveService(
         if (dto is null)
         {
             throw await db.LeaveRequests.AnyAsync(l => l.Id == id, cancellationToken)
-                ? new ForbiddenException("You do not have access to this leave request.")
-                : new NotFoundException("Leave request", id);
+                ? new ForbiddenException(Text.Get("leave.noAccess"))
+                : new NotFoundException("LeaveRequest", id);
         }
 
         return Decorate(dto, scope);
@@ -102,17 +103,17 @@ public sealed class LeaveService(
         var employeeId = request.EmployeeId ?? scope.RequireEmployeeId();
         if (employeeId != scope.EmployeeId && !scope.IsAdmin)
         {
-            throw new ForbiddenException("Only administrators can submit leave on behalf of another employee.");
+            throw new ForbiddenException(Text.Get("leave.onBehalfForbidden"));
         }
 
         var employee = await db.Employees.Include(e => e.Department)
                            .FirstOrDefaultAsync(e => e.Id == employeeId, cancellationToken)
-                       ?? throw new RequestValidationException("employeeId", "The selected employee does not exist.");
+                       ?? throw new RequestValidationException("employeeId", Text.Get("error.employeeNotFound"));
 
         var totalDays = LeaveDayCalculator.CountWorkingDays(request.StartDate, request.EndDate);
         if (totalDays == 0)
         {
-            throw new RequestValidationException("endDate", "The selected period does not contain any working days.");
+            throw new RequestValidationException("endDate", Text.Get("leave.noWorkingDays"));
         }
 
         var overlaps = await db.LeaveRequests.AnyAsync(l =>
@@ -121,7 +122,7 @@ public sealed class LeaveService(
             l.StartDate <= request.EndDate && request.StartDate <= l.EndDate, cancellationToken);
         if (overlaps)
         {
-            throw new ConflictException("This period overlaps an existing pending or approved leave request.");
+            throw new ConflictException(Text.Get("leave.overlap"));
         }
 
         if (request.LeaveType == LeaveType.AnnualLeave)
@@ -131,7 +132,7 @@ public sealed class LeaveService(
             var available = balance.TotalDays - balance.UsedDays - pending;
             if (totalDays > available)
             {
-                throw new DomainException($"Insufficient annual leave balance: {available} day(s) available, {totalDays} requested.");
+                throw new DomainException(Text.Get("leave.insufficientBalance", available, totalDays));
             }
         }
 
@@ -171,7 +172,7 @@ public sealed class LeaveService(
             var balance = await EnsureBalanceAsync(leave.EmployeeId, leave.StartDate.Year, cancellationToken);
             if (balance.TotalDays - balance.UsedDays < leave.TotalDays)
             {
-                throw new DomainException("The employee no longer has enough annual leave balance for this request.");
+                throw new DomainException(Text.Get("leave.balanceNoLongerEnough"));
             }
 
             balance.UsedDays += leave.TotalDays;
@@ -206,11 +207,11 @@ public sealed class LeaveService(
     {
         var scope = await currentUser.GetScopeAsync(cancellationToken);
         var leave = await db.LeaveRequests.FirstOrDefaultAsync(l => l.Id == id, cancellationToken)
-                    ?? throw new NotFoundException("Leave request", id);
+                    ?? throw new NotFoundException("LeaveRequest", id);
 
         if (leave.EmployeeId != scope.EmployeeId && !scope.IsAdmin)
         {
-            throw new ForbiddenException("You can only cancel your own leave requests.");
+            throw new ForbiddenException(Text.Get("leave.ownCancelOnly"));
         }
 
         leave.Cancel();
@@ -298,7 +299,7 @@ public sealed class LeaveService(
 
         if (request.TotalDays < balance.UsedDays)
         {
-            throw new DomainException($"Total days cannot be lower than the {balance.UsedDays} day(s) already used.");
+            throw new DomainException(Text.Get("leave.totalBelowUsed", balance.UsedDays));
         }
 
         var before = balance.TotalDays;
@@ -315,7 +316,7 @@ public sealed class LeaveService(
     {
         if (to < from || to.DayNumber - from.DayNumber > 93)
         {
-            throw new RequestValidationException("to", "The calendar range must be between 1 and 93 days.");
+            throw new RequestValidationException("to", Text.Get("leave.calendarRange"));
         }
 
         var scope = await currentUser.GetScopeAsync(cancellationToken);
@@ -348,11 +349,11 @@ public sealed class LeaveService(
     {
         var scope = await currentUser.GetScopeAsync(cancellationToken);
         var leave = await db.LeaveRequests.Include(l => l.Employee).FirstOrDefaultAsync(l => l.Id == id, cancellationToken)
-                    ?? throw new NotFoundException("Leave request", id);
+                    ?? throw new NotFoundException("LeaveRequest", id);
 
         if (!CanDecide(scope, leave.EmployeeId, leave.Employee.DepartmentId))
         {
-            throw new ForbiddenException("You can only decide leave requests for your own department.");
+            throw new ForbiddenException(Text.Get("leave.ownDepartmentOnly"));
         }
 
         return (scope, leave);

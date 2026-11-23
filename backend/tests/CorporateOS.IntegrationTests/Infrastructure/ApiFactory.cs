@@ -43,6 +43,13 @@ public sealed class ApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
         }
     }
 
+    /// <summary>Assertions use the English catalog; the API itself defaults to Turkish.</summary>
+    protected override void ConfigureClient(HttpClient client)
+    {
+        base.ConfigureClient(client);
+        client.DefaultRequestHeaders.AcceptLanguage.ParseAdd("en");
+    }
+
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
         var connectionString = new SqlConnectionStringBuilder(_sql.GetConnectionString())

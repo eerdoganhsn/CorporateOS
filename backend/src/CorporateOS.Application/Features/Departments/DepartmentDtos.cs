@@ -1,5 +1,6 @@
 using CorporateOS.Application.Common.Models;
 using CorporateOS.Domain.Enums;
+using CorporateOS.Domain.Localization;
 using FluentValidation;
 
 namespace CorporateOS.Application.Features.Departments;
@@ -57,7 +58,7 @@ public sealed class SaveDepartmentRequestValidator : AbstractValidator<SaveDepar
     {
         RuleFor(x => x.Name).NotEmpty().MaximumLength(150);
         RuleFor(x => x.Code).NotEmpty().MaximumLength(20)
-            .Matches("^[A-Za-z0-9-]+$").WithMessage("Code may only contain letters, digits and hyphens.");
+            .Matches("^[A-Za-z0-9-]+$").WithMessage(_ => Text.Get("error.codeFormat"));
         RuleFor(x => x.Description).MaximumLength(1000);
         RuleFor(x => x.Status).IsInEnum();
         RuleFor(x => x.ManagerId).GreaterThan(0).When(x => x.ManagerId.HasValue);

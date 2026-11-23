@@ -9,6 +9,7 @@ using CorporateOS.API.Services;
 using CorporateOS.Application.Common.Interfaces;
 using CorporateOS.Application.Common.Models;
 using CorporateOS.Application.Common.Options;
+using CorporateOS.Domain.Localization;
 using CorporateOS.Infrastructure.Identity;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Mvc;
@@ -40,8 +41,8 @@ public static class ApiServiceCollectionExtensions
                         .Where(e => e.Value?.Errors.Count > 0)
                         .ToDictionary(
                             e => ValidationFilter.ToCamelCasePath(e.Key.TrimStart('$', '.')),
-                            e => e.Value!.Errors.Select(x => string.IsNullOrEmpty(x.ErrorMessage) ? "Invalid value." : x.ErrorMessage).ToArray());
-                    return new BadRequestObjectResult(ApiResponse.Fail("Validation failed", errors));
+                            e => e.Value!.Errors.Select(x => string.IsNullOrEmpty(x.ErrorMessage) ? Text.Get("error.invalidValue") : x.ErrorMessage).ToArray());
+                    return new BadRequestObjectResult(ApiResponse.Fail(Text.Get("error.validationFailed"), errors));
                 };
             });
         services.ConfigureHttpJsonOptions(options => options.SerializerOptions.Converters.Add(new JsonStringEnumConverter()));
@@ -95,13 +96,13 @@ public static class ApiServiceCollectionExtensions
                         }
 
                         await context.Response.WriteAsJsonAsync(
-                            ApiResponse.Fail(expired ? "Access token has expired." : "Authentication is required."));
+                            ApiResponse.Fail(expired ? Text.Get("error.tokenExpired") : Text.Get("error.unauthorized")));
                     },
                     OnForbidden = async context =>
                     {
                         context.Response.StatusCode = StatusCodes.Status403Forbidden;
                         await context.Response.WriteAsJsonAsync(
-                            ApiResponse.Fail("You do not have permission to access this resource."));
+                            ApiResponse.Fail(Text.Get("error.noAccess")));
                     }
                 };
             });
@@ -137,7 +138,7 @@ public static class ApiServiceCollectionExtensions
                     }));
             options.OnRejected = async (context, token) =>
                 await context.HttpContext.Response.WriteAsJsonAsync(
-                    ApiResponse.Fail("Too many attempts. Please wait a minute and try again."), token);
+                    ApiResponse.Fail(Text.Get("error.tooManyAttempts")), token);
         });
     }
 
