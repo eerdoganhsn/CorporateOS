@@ -1,6 +1,7 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Bell, CheckCheck } from 'lucide-react'
 import { useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { Link, useNavigate } from 'react-router'
 import { notificationsApi } from '@/api/endpoints'
 import { Spinner } from '@/components/common/states'
@@ -12,6 +13,7 @@ import { cn } from '@/utils/cn'
 import { formatRelative } from '@/utils/format'
 
 export function NotificationBell() {
+  const { t } = useTranslation()
   const [open, setOpen] = useState(false)
   const navigate = useNavigate()
   const queryClient = useQueryClient()
@@ -49,7 +51,7 @@ export function NotificationBell() {
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
-        <Button variant="ghost" size="icon" className="relative" aria-label={`Notifications (${count} unread)`}>
+        <Button variant="ghost" size="icon" className="relative" aria-label={t('common.notifications.bellLabel', { count })}>
           <Bell />
           {count > 0 && (
             <span className="absolute top-1 right-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-red-600 px-1 text-[10px] font-semibold text-white">
@@ -60,10 +62,10 @@ export function NotificationBell() {
       </PopoverTrigger>
       <PopoverContent align="end" className="w-[22rem] p-0">
         <div className="flex items-center justify-between border-b px-4 py-3">
-          <p className="text-sm font-semibold">Notifications</p>
+          <p className="text-sm font-semibold">{t('common.notifications.title')}</p>
           <Button variant="ghost" size="sm" onClick={markAll} disabled={count === 0}>
             <CheckCheck />
-            Mark all read
+            {t('common.notifications.markAllRead')}
           </Button>
         </div>
         <div className="max-h-96 overflow-y-auto">
@@ -72,7 +74,7 @@ export function NotificationBell() {
               <Spinner className="text-muted-foreground" />
             </div>
           )}
-          {recent.data?.items.length === 0 && <p className="px-4 py-8 text-center text-sm text-muted-foreground">You're all caught up.</p>}
+          {recent.data?.items.length === 0 && <p className="px-4 py-8 text-center text-sm text-muted-foreground">{t('common.notifications.caughtUp')}</p>}
           {recent.data?.items.map((item) => (
             <button
               key={item.id}
@@ -91,7 +93,7 @@ export function NotificationBell() {
         </div>
         <div className="border-t p-2">
           <Button variant="ghost" size="sm" className="w-full" asChild onClick={() => setOpen(false)}>
-            <Link to="/notifications">View all notifications</Link>
+            <Link to="/notifications">{t('common.notifications.viewAll')}</Link>
           </Button>
         </div>
       </PopoverContent>

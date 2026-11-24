@@ -236,7 +236,7 @@ public sealed class UserAdminService(
                 ? new RoleDto(name, c.Description, c.Users, c.Active)
                 : new RoleDto(name, Roles.Descriptions[name], 0, 0))
             .ToList();
-        return new RolesOverviewDto(roles, PermissionMatrix.All);
+        return new RolesOverviewDto(roles, PermissionMatrix.All());
     }
 
     /// <summary>

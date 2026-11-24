@@ -1,13 +1,9 @@
 import { History } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
+import { describeAction, fieldLabel } from '@/features/audit/describe-action'
 import type { ActivityItem } from '@/types/api'
-import { formatDateTime, formatRelative, humanize } from '@/utils/format'
+import { formatDateTime, formatRelative } from '@/utils/format'
 import { EmptyState } from './states'
-
-/** "Task.StatusChanged" -> "Task status changed" */
-function describe(action: string) {
-  const [entity, verb] = action.split('.')
-  return verb ? `${humanize(entity)} ${humanize(verb).toLowerCase()}` : humanize(action)
-}
 
 function summarize(details: string | null): string | null {
   if (!details) return null
@@ -16,7 +12,7 @@ function summarize(details: string | null): string | null {
     const parts = Object.entries(parsed)
       .filter(([, v]) => v !== null && typeof v !== 'object')
       .slice(0, 4)
-      .map(([k, v]) => `${humanize(k)}: ${String(v)}`)
+      .map(([k, v]) => `${fieldLabel(k)}: ${String(v)}`)
     return parts.length ? parts.join(' · ') : null
   } catch {
     return null
@@ -24,8 +20,9 @@ function summarize(details: string | null): string | null {
 }
 
 export function ActivityTimeline({ items }: { items: ActivityItem[] }) {
+  const { t } = useTranslation()
   if (items.length === 0) {
-    return <EmptyState icon={History} title="No activity yet" description="Changes will appear here as they happen." />
+    return <EmptyState icon={History} title={t('common.states.noActivity')} description={t('common.states.noActivityHint')} />
   }
 
   return (
@@ -36,8 +33,8 @@ export function ActivityTimeline({ items }: { items: ActivityItem[] }) {
           <li key={item.id} className="relative">
             <span className="absolute top-1.5 -left-[25px] size-2.5 rounded-full border-2 border-background bg-foreground/70" />
             <p className="text-sm">
-              <span className="font-medium">{item.userName ?? 'System'}</span>{' '}
-              <span className="text-muted-foreground">— {describe(item.action)}</span>
+              <span className="font-medium">{item.userName ?? t('common.system')}</span>{' '}
+              <span className="text-muted-foreground">— {describeAction(item.action)}</span>
             </p>
             {summary && <p className="mt-0.5 text-xs break-words text-muted-foreground">{summary}</p>}
             <time className="mt-0.5 block text-xs text-muted-foreground" title={formatDateTime(item.createdAt)}>

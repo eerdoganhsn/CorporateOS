@@ -60,7 +60,7 @@ public sealed class AuthController(IAuthService authService, IOptions<AuthCookie
     {
         await authService.LogoutAsync(Request.Cookies[cookieOptions.Value.Name], cancellationToken);
         ClearRefreshCookie();
-        return OkMessage("Signed out.");
+        return OkMessage(Text.Get("success.signedOut"));
     }
 
     /// <summary>Returns the signed-in user, roles and linked employee profile.</summary>
@@ -75,7 +75,7 @@ public sealed class AuthController(IAuthService authService, IOptions<AuthCookie
     public async Task<ActionResult<ApiResponse<object>>> ForgotPassword(ForgotPasswordRequest request, CancellationToken cancellationToken)
     {
         await authService.ForgotPasswordAsync(request, cancellationToken);
-        return OkMessage("If an account exists for that email, a reset link has been sent.");
+        return OkMessage(Text.Get("success.resetLinkSent"));
     }
 
     /// <summary>Completes a password reset using the emailed token.</summary>
@@ -85,7 +85,7 @@ public sealed class AuthController(IAuthService authService, IOptions<AuthCookie
     public async Task<ActionResult<ApiResponse<object>>> ResetPassword(ResetPasswordRequest request, CancellationToken cancellationToken)
     {
         await authService.ResetPasswordAsync(request, cancellationToken);
-        return OkMessage("Your password has been reset. You can now sign in.");
+        return OkMessage(Text.Get("success.passwordReset"));
     }
 
     /// <summary>Changes the signed-in user's password and signs out other sessions.</summary>
@@ -94,7 +94,7 @@ public sealed class AuthController(IAuthService authService, IOptions<AuthCookie
     {
         var result = await authService.ChangePasswordAsync(request, cancellationToken);
         SetRefreshCookie(result);
-        return OkResponse(result.Response, "Password changed.");
+        return OkResponse(result.Response, Text.Get("success.passwordChanged"));
     }
 
     private void SetRefreshCookie(AuthResult result)

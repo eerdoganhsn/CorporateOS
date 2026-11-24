@@ -3,6 +3,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { eachDayOfInterval, isWeekend, parseISO } from 'date-fns'
 import { Info } from 'lucide-react'
 import { useForm, useWatch } from 'react-hook-form'
+import { useTranslation } from 'react-i18next'
 import { Link, useNavigate } from 'react-router'
 import { toast } from 'sonner'
 import { z } from 'zod'
@@ -14,19 +15,19 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardFooter } from '@/components/ui/display'
 import { Input, NativeSelect, Textarea } from '@/components/ui/form-controls'
 import { LEAVE_TYPES } from '@/types/enums'
-import { humanize } from '@/utils/format'
+import { enumLabel } from '@/i18n/enum-label'
 import { toNullable } from '@/utils/form'
 import { applyServerErrors } from '@/utils/server-errors'
 
 const schema = z
   .object({
-    leaveType: z.enum(LEAVE_TYPES, { message: 'Leave type is required.' }),
-    startDate: z.string().min(1, 'Start date is required.'),
-    endDate: z.string().min(1, 'End date is required.'),
+    leaveType: z.enum(LEAVE_TYPES, { message: 'leave.validation.typeRequired' }),
+    startDate: z.string().min(1, 'leave.validation.startRequired'),
+    endDate: z.string().min(1, 'leave.validation.endRequired'),
     reason: z.string().max(1000),
   })
-  .refine((v) => !v.startDate || !v.endDate || v.endDate >= v.startDate, { path: ['endDate'], message: 'End date cannot be earlier than start date.' })
-  .refine((v) => v.leaveType !== 'Other' || v.reason.trim().length > 0, { path: ['reason'], message: 'Please describe the reason for this leave type.' })
+  .refine((v) => !v.startDate || !v.endDate || v.endDate >= v.startDate, { path: ['endDate'], message: 'common.validation.endBeforeStart' })
+  .refine((v) => v.leaveType !== 'Other' || v.reason.trim().length > 0, { path: ['reason'], message: 'leave.validation.reasonRequired' })
 type FormValues = z.infer<typeof schema>
 
 /** Mirrors the server's working-day calculation (Mon–Fri) for an instant preview. */
@@ -36,6 +37,7 @@ function workingDays(start: string, end: string): number {
 }
 
 export default function NewLeavePage() {
+  const { t } = useTranslation()
   const navigate = useNavigate()
   const queryClient = useQueryClient()
   const summary = useQuery({ queryKey: ['leave', 'summary'], queryFn: () => leaveApi.mySummary() })
@@ -58,7 +60,7 @@ export default function NewLeavePage() {
       await leaveApi.create({ ...v, reason: toNullable(v.reason) })
       await queryClient.invalidateQueries({ queryKey: ['leave'] })
       await queryClient.invalidateQueries({ queryKey: ['dashboard'] })
-      toast.success('Leave request submitted. Your manager has been notified.')
+      toast.success(t('leave.new.submitted'))
       navigate('/leave')
     } catch (error) {
       applyServerErrors(error, setError, ['leaveType', 'startDate', 'endDate', 'reason'])
@@ -67,26 +69,26 @@ export default function NewLeavePage() {
 
   return (
     <>
-      <PageHeader title="Request leave" description="Working days are calculated automatically (weekends excluded)." back={{ to: '/leave', label: 'Leave Management' }} />
+      <PageHeader title={t('leave.new.title')} description={t('leave.new.description')} back={{ to: '/leave', label: t('leave.title') }} />
       <form onSubmit={handleSubmit(submit)} noValidate className="max-w-2xl">
         <Card>
           <CardContent className="grid gap-4 sm:grid-cols-2">
-            <FormField label="Leave type" htmlFor="leaveType" error={errors.leaveType?.message} required className="sm:col-span-2">
+            <FormField label={t('leave.new.type')} htmlFor="leaveType" error={errors.leaveType?.message} required className="sm:col-span-2">
               <NativeSelect id="leaveType" {...register('leaveType')}>
-                {LEAVE_TYPES.map((t) => (
-                  <option key={t} value={t}>
-                    {humanize(t)}
+                {LEAVE_TYPES.map((type) => (
+                  <option key={type} value={type}>
+                    {enumLabel('LeaveType', type)}
                   </option>
                 ))}
               </NativeSelect>
             </FormField>
-            <FormField label="First day" htmlFor="startDate" error={errors.startDate?.message} required>
+            <FormField label={t('leave.new.firstDay')} htmlFor="startDate" error={errors.startDate?.message} required>
               <Input id="startDate" type="date" aria-invalid={!!errors.startDate} {...register('startDate')} />
             </FormField>
-            <FormField label="Last day" htmlFor="endDate" error={errors.endDate?.message} required>
+            <FormField label={t('leave.new.lastDay')} htmlFor="endDate" error={errors.endDate?.message} required>
               <Input id="endDate" type="date" min={start || undefined} aria-invalid={!!errors.endDate} {...register('endDate')} />
             </FormField>
-            <FormField label="Reason" htmlFor="reason" error={errors.reason?.message} required={type === 'Other'} className="sm:col-span-2">
+            <FormField label={t('leave.new.reason')} htmlFor="reason" error={errors.reason?.message} required={type === 'Other'} className="sm:col-span-2">
               <Textarea id="reason" rows={3} maxLength={1000} {...register('reason')} />
             </FormField>
 
@@ -94,11 +96,11 @@ export default function NewLeavePage() {
               <Info className="mt-0.5 size-4 shrink-0" />
               <div>
                 <p className="font-medium">
-                  {days} working day{days === 1 ? '' : 's'} requested
+                  {t('leave.new.workingDays', { count: days })}
                 </p>
                 {type === 'AnnualLeave' && available !== null && (
                   <p className="text-xs">
-                    {exceeds ? `This exceeds your available balance of ${available} day(s).` : `${available} annual leave day(s) available after pending requests.`}
+                    {exceeds ? t('leave.new.exceeds', { count: available }) : t('leave.new.available', { count: available })}
                   </p>
                 )}
               </div>
@@ -106,11 +108,11 @@ export default function NewLeavePage() {
           </CardContent>
           <CardFooter className="justify-end gap-2">
             <Button variant="outline" asChild>
-              <Link to="/leave">Cancel</Link>
+              <Link to="/leave">{t('common.actions.cancel')}</Link>
             </Button>
             <Button type="submit" disabled={isSubmitting}>
               {isSubmitting && <Spinner />}
-              Submit request
+              {t('leave.new.submit')}
             </Button>
           </CardFooter>
         </Card>

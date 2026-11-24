@@ -14,6 +14,7 @@ import {
 } from 'date-fns'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { leaveApi } from '@/api/endpoints'
 import { ErrorState } from '@/components/common/states'
 import { Button } from '@/components/ui/button'
@@ -21,12 +22,14 @@ import { NativeSelect } from '@/components/ui/form-controls'
 import { useDepartmentLookup } from '@/hooks/use-lookups'
 import { usePermissions } from '@/store/auth-store'
 import { cn } from '@/utils/cn'
-import { toIsoDate } from '@/utils/format'
-
-const WEEKDAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
+import { currentLanguage } from '@/i18n'
+import { enumLabel } from '@/i18n/enum-label'
+import { dateLocale } from '@/i18n/languages'
+import { formatMonth, formatShortDate, toIsoDate } from '@/utils/format'
 
 /** Month grid of approved (solid) and pending (outlined) leave for the visible team. */
 export function LeaveCalendar() {
+  const { t } = useTranslation()
   const { isAdmin } = usePermissions()
   const departments = useDepartmentLookup()
   const [month, setMonth] = useState(() => startOfMonth(new Date()))
@@ -44,26 +47,28 @@ export function LeaveCalendar() {
 
   if (error) return <ErrorState error={error} onRetry={refetch} />
   const days = eachDayOfInterval({ start: gridStart, end: gridEnd })
+  // Short weekday names (Monday first) in the current language.
+  const weekdays = days.slice(0, 7).map((day) => format(day, 'EEE', { locale: dateLocale(currentLanguage()) }))
   const entries = data ?? []
 
   return (
     <div className="p-4">
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-2">
-          <Button variant="outline" size="icon-sm" onClick={() => setMonth((m) => addMonths(m, -1))} aria-label="Previous month">
+          <Button variant="outline" size="icon-sm" onClick={() => setMonth((m) => addMonths(m, -1))} aria-label={t('leave.calendar.previousMonth')}>
             <ChevronLeft />
           </Button>
-          <h3 className="w-36 text-center text-sm font-semibold">{format(month, 'MMMM yyyy')}</h3>
-          <Button variant="outline" size="icon-sm" onClick={() => setMonth((m) => addMonths(m, 1))} aria-label="Next month">
+          <h3 className="w-36 text-center text-sm font-semibold">{formatMonth(month)}</h3>
+          <Button variant="outline" size="icon-sm" onClick={() => setMonth((m) => addMonths(m, 1))} aria-label={t('leave.calendar.nextMonth')}>
             <ChevronRight />
           </Button>
           <Button variant="ghost" size="sm" onClick={() => setMonth(startOfMonth(new Date()))}>
-            Today
+            {t('leave.calendar.today')}
           </Button>
         </div>
         {isAdmin && (
-          <NativeSelect aria-label="Department" className="w-48" value={departmentId} onChange={(e) => setDepartmentId(e.target.value)}>
-            <option value="">All departments</option>
+          <NativeSelect aria-label={t('leave.calendar.department')} className="w-48" value={departmentId} onChange={(e) => setDepartmentId(e.target.value)}>
+            <option value="">{t('leave.calendar.allDepartments')}</option>
             {departments.data?.map((d) => (
               <option key={d.id} value={d.id}>
                 {d.name}
@@ -73,7 +78,7 @@ export function LeaveCalendar() {
         )}
       </div>
       <div className="grid grid-cols-7 overflow-hidden rounded-md border text-xs">
-        {WEEKDAYS.map((d) => (
+        {weekdays.map((d) => (
           <div key={d} className="border-b bg-muted/40 px-2 py-1.5 font-medium text-muted-foreground">
             {d}
           </div>
@@ -93,7 +98,7 @@ export function LeaveCalendar() {
                 {onLeave.slice(0, 3).map((e) => (
                   <li
                     key={e.id}
-                    title={`${e.employeeName} · ${e.leaveType} · ${e.status}`}
+                    title={`${e.employeeName} · ${enumLabel('LeaveType', e.leaveType)} · ${enumLabel('LeaveStatus', e.status)}`}
                     className={cn(
                       'truncate rounded px-1 py-0.5 text-[10px]',
                       e.status === 'Approved' ? 'bg-zinc-800 text-white' : 'border border-dashed border-zinc-400 text-zinc-700',
@@ -102,7 +107,7 @@ export function LeaveCalendar() {
                     {e.employeeName.split(' ')[0]}
                   </li>
                 ))}
-                {onLeave.length > 3 && <li className="px-1 text-[10px] text-muted-foreground">+{onLeave.length - 3} more</li>}
+                {onLeave.length > 3 && <li className="px-1 text-[10px] text-muted-foreground">{t('leave.calendar.more', { count: onLeave.length - 3 })}</li>}
               </ul>
             </div>
           )
@@ -110,13 +115,13 @@ export function LeaveCalendar() {
       </div>
       <div className="mt-3 flex gap-4 text-xs text-muted-foreground">
         <span className="flex items-center gap-1.5">
-          <span className="size-3 rounded-sm bg-zinc-800" /> Approved
+          <span className="size-3 rounded-sm bg-zinc-800" /> {t('leave.calendar.approved')}
         </span>
         <span className="flex items-center gap-1.5">
-          <span className="size-3 rounded-sm border border-dashed border-zinc-400" /> Pending
+          <span className="size-3 rounded-sm border border-dashed border-zinc-400" /> {t('leave.calendar.pending')}
         </span>
         <span>
-          {entries.length} request(s) in view · range {format(parseISO(from), 'MMM d')} – {format(parseISO(to), 'MMM d')}
+          {t('leave.calendar.summary', { count: entries.length, from: formatShortDate(parseISO(from)), to: formatShortDate(parseISO(to)) })}
         </span>
       </div>
     </div>

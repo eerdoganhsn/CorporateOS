@@ -183,6 +183,22 @@ a detailed table and **CSV / Excel (ClosedXML) export** or a print-friendly layo
   allowed extensions; password policy, lockout and token lifetimes — applied at runtime without a redeploy.
 </details>
 
+<details>
+<summary><b>🌍 Languages — Türkçe · English · Deutsch</b></summary>
+
+- The whole application is translated: every screen, validation and error message, notification, the password-reset
+  e-mail, report titles, columns and CSV / Excel exports, settings labels and the permission matrix.
+- **Turkish is the default.** Users switch language from the top bar, the sign-in page or their profile; the choice is
+  stored in the user profile, so it follows them to other devices.
+- Notifications and e-mails are written in the **recipient's** language, not the sender's: a manager who uses German
+  receives a German approval request from an employee who works in English.
+- Dates, numbers, currencies and percentages use the conventions of the selected language.
+- **Frontend:** i18next with typed message catalogs (`frontend/src/i18n/messages`); English is the source shape and
+  the compiler rejects a Turkish or German catalog with missing or extra keys.
+- **Backend:** embedded JSON catalogs (`CorporateOS.Domain/Localization/Resources`); the API answers in the language of
+  the `Accept-Language` header. A unit test checks that all three catalogs have the same keys and placeholders.
+</details>
+
 ---
 
 ## 🏗️ Architecture
@@ -377,14 +393,14 @@ The sign-in page offers one-click buttons for these accounts in `npm run dev`, a
 
 ```powershell
 cd backend
-dotnet test                  # 99 unit + 48 integration tests
+dotnet test                  # 111 unit + 59 integration tests
 ```
 
 | Suite | What it proves |
 |---|---|
-| **Unit — 99 tests** (xUnit, FluentAssertions, EF Core InMemory, `FakeTimeProvider`) | Validators for employees, projects, tasks, leave and expenses · working-day calculation · leave / expense / task state transitions · file-signature checks · task authorization (who may assign, edit, cancel) |
-| **Integration — 48 tests** (`WebApplicationFactory` + **Testcontainers SQL Server**) | Real HTTP against a real database: login, unauthorized access, refresh rotation, **token-reuse detection** (with a controllable clock), role gates, and the employee, project, leave and expense workflows end to end |
-| **Browser — Playwright** (`scripts/dev-checks/check.mjs`) | Signs in as every role through the UI, visits every route, checks forbidden redirects, session restore after reload, an employee → manager leave approval and phone-width layout on 15 pages |
+| **Unit — 111 tests** (xUnit, FluentAssertions, EF Core InMemory, `FakeTimeProvider`) | Validators for employees, projects, tasks, leave and expenses · working-day calculation · leave / expense / task state transitions · file-signature checks · task authorization (who may assign, edit, cancel) · message catalogs complete in all three languages |
+| **Integration — 59 tests** (`WebApplicationFactory` + **Testcontainers SQL Server**) | Real HTTP against a real database: login, unauthorized access, refresh rotation, **token-reuse detection** (with a controllable clock), role gates, the employee, project, leave and expense workflows end to end, and responses / notifications in the right language |
+| **Browser — Playwright** (`scripts/dev-checks/check.mjs`) | Signs in as every role through the UI, visits every route, checks forbidden redirects, session restore after reload, an employee → manager leave approval, no untranslated text, switching between the three languages and phone-width layout on 15 pages |
 | **Static** | `dotnet build` with **0 warnings**, TypeScript strict mode, ESLint + Prettier |
 
 ```powershell

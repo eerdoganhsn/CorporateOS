@@ -1,6 +1,7 @@
 using CorporateOS.Application.Common.Models;
 using CorporateOS.Domain.Entities;
 using CorporateOS.Domain.Enums;
+using CorporateOS.Domain.Localization;
 
 namespace CorporateOS.Application.Common.Interfaces;
 
@@ -17,15 +18,25 @@ public interface IAuditService
         string? userEmail = null);
 }
 
-/// <summary>Adds in-app notifications to the current unit of work.</summary>
+/// <summary>
+/// Adds in-app notifications to the current unit of work. Titles and messages are rendered in each
+/// recipient's preferred language.
+/// </summary>
 public interface INotificationPublisher
 {
-    void Notify(Guid userId, string title, string message, NotificationType type, string? entityType = null, string? entityId = null);
+    Task NotifyUsersAsync(
+        IEnumerable<Guid> userIds,
+        LocalizedText title,
+        LocalizedText message,
+        NotificationType type,
+        string? entityType = null,
+        string? entityId = null,
+        CancellationToken cancellationToken = default);
 
     Task NotifyEmployeesAsync(
         IEnumerable<int> employeeIds,
-        string title,
-        string message,
+        LocalizedText title,
+        LocalizedText message,
         NotificationType type,
         string? entityType = null,
         string? entityId = null,

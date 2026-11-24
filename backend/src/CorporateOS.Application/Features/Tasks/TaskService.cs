@@ -276,8 +276,8 @@ public sealed class TaskService(
         var recipients = new[] { task.AssignedToId, task.AssignedById, task.Project.ProjectManagerId }
             .Where(e => e.HasValue && e != scope.EmployeeId)
             .Select(e => e!.Value);
-        await notifications.NotifyEmployeesAsync(recipients, $"New comment on \"{task.Title}\"",
-            $"{scope.DisplayName}: {comment.Content}", NotificationType.TaskComment, EntityName, id.ToString(), cancellationToken);
+        await notifications.NotifyEmployeesAsync(recipients, LocalizedText.Of("notify.taskComment.title", task.Title),
+            LocalizedText.Of("notify.taskComment.message", scope.DisplayName, comment.Content), NotificationType.TaskComment, EntityName, id.ToString(), cancellationToken);
 
         audit.Record("Task.CommentAdded", EntityName, id.ToString(), newValues: new { Length = comment.Content.Length });
         await db.SaveChangesAsync(cancellationToken);
@@ -306,9 +306,9 @@ public sealed class TaskService(
 
         foreach (var task in due)
         {
-            var when = task.DueDate == today ? "today" : "tomorrow";
-            await notifications.NotifyEmployeesAsync([task.AssignedToId!.Value], "Task due soon",
-                $"\"{task.Title}\" ({task.Project.ProjectCode}) is due {when}.", NotificationType.TaskDueSoon,
+            var messageKey = task.DueDate == today ? "notify.taskDueToday.message" : "notify.taskDueTomorrow.message";
+            await notifications.NotifyEmployeesAsync([task.AssignedToId!.Value], LocalizedText.Of("notify.taskDueSoon.title"),
+                LocalizedText.Of(messageKey, task.Title, task.Project.ProjectCode), NotificationType.TaskDueSoon,
                 EntityName, task.Id.ToString(), cancellationToken);
             task.DueSoonNotifiedAt = Now;
         }
@@ -390,9 +390,10 @@ public sealed class TaskService(
 
     private Task NotifyAssignedAsync(TaskItem task, Project project, int assigneeId, CancellationToken cancellationToken)
     {
-        var due = task.DueDate is { } d ? $" Due {d:yyyy-MM-dd}." : string.Empty;
-        return notifications.NotifyEmployeesAsync([assigneeId], "New task assigned",
-            $"\"{task.Title}\" in {project.Name}.{due}", NotificationType.TaskAssigned, EntityName,
+        var message = task.DueDate is { } due
+            ? LocalizedText.Of("notify.taskAssignedDue.message", task.Title, project.Name, due)
+            : LocalizedText.Of("notify.taskAssigned.message", task.Title, project.Name);
+        return notifications.NotifyEmployeesAsync([assigneeId], LocalizedText.Of("notify.taskAssigned.title"), message, NotificationType.TaskAssigned, EntityName,
             task.Id == 0 ? null : task.Id.ToString(), cancellationToken);
     }
 
@@ -401,8 +402,8 @@ public sealed class TaskService(
         var recipients = new[] { task.AssignedById, task.Project.ProjectManagerId, task.AssignedToId }
             .Where(e => e.HasValue && e != scope.EmployeeId)
             .Select(e => e!.Value);
-        return notifications.NotifyEmployeesAsync(recipients, "Task status updated",
-            $"{scope.DisplayName} moved \"{task.Title}\" to {task.Status}.", NotificationType.TaskStatusChanged,
+        return notifications.NotifyEmployeesAsync(recipients, LocalizedText.Of("notify.taskStatus.title"),
+            LocalizedText.Of("notify.taskStatus.message", scope.DisplayName, task.Title, task.Status), NotificationType.TaskStatusChanged,
             EntityName, task.Id.ToString(), cancellationToken);
     }
 

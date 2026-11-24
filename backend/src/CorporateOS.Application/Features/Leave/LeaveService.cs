@@ -150,8 +150,8 @@ public sealed class LeaveService(
 
         var approvers = new[] { employee.ManagerId, employee.Department.ManagerId }
             .Where(id => id.HasValue && id != employeeId).Select(id => id!.Value);
-        await notifications.NotifyEmployeesAsync(approvers, "Leave request awaiting approval",
-            $"{employee.FullName} requested {totalDays} day(s) of {Humanize(request.LeaveType)} ({request.StartDate:MMM d} – {request.EndDate:MMM d}).",
+        await notifications.NotifyEmployeesAsync(approvers, LocalizedText.Of("notify.leaveSubmitted.title"),
+            LocalizedText.Of("notify.leaveSubmitted.message", employee.FullName, totalDays, request.LeaveType, request.StartDate, request.EndDate),
             NotificationType.LeaveSubmitted, EntityName, leave.Id.ToString(), cancellationToken);
 
         audit.Record("Leave.Submitted", EntityName, leave.Id.ToString(), newValues: new
@@ -180,8 +180,8 @@ public sealed class LeaveService(
 
         leave.Approve(approverId, request.Note?.Trim(), Now);
 
-        await notifications.NotifyEmployeesAsync([leave.EmployeeId], "Leave request approved",
-            $"Your {Humanize(leave.LeaveType)} request for {leave.StartDate:MMM d} – {leave.EndDate:MMM d} was approved.",
+        await notifications.NotifyEmployeesAsync([leave.EmployeeId], LocalizedText.Of("notify.leaveApproved.title"),
+            LocalizedText.Of("notify.leaveApproved.message", leave.LeaveType, leave.StartDate, leave.EndDate),
             NotificationType.LeaveApproved, EntityName, id.ToString(), cancellationToken);
         audit.Record("Leave.Approved", EntityName, id.ToString(), new { Status = LeaveRequestStatus.Pending },
             new { leave.Status, leave.ApprovalNote, leave.TotalDays });
@@ -194,8 +194,8 @@ public sealed class LeaveService(
         var (scope, leave) = await LoadForDecisionAsync(id, cancellationToken);
         leave.Reject(scope.RequireEmployeeId(), request.Reason.Trim(), Now);
 
-        await notifications.NotifyEmployeesAsync([leave.EmployeeId], "Leave request rejected",
-            $"Your {Humanize(leave.LeaveType)} request for {leave.StartDate:MMM d} – {leave.EndDate:MMM d} was rejected: {leave.RejectionReason}",
+        await notifications.NotifyEmployeesAsync([leave.EmployeeId], LocalizedText.Of("notify.leaveRejected.title"),
+            LocalizedText.Of("notify.leaveRejected.message", leave.LeaveType, leave.StartDate, leave.EndDate, leave.RejectionReason),
             NotificationType.LeaveRejected, EntityName, id.ToString(), cancellationToken);
         audit.Record("Leave.Rejected", EntityName, id.ToString(), new { Status = LeaveRequestStatus.Pending },
             new { leave.Status, leave.RejectionReason });
@@ -414,16 +414,6 @@ public sealed class LeaveService(
             CanCancel = isPending && (dto.EmployeeId == scope.EmployeeId || scope.IsAdmin)
         };
     }
-
-    private static string Humanize(LeaveType type) => type switch
-    {
-        LeaveType.AnnualLeave => "annual leave",
-        LeaveType.SickLeave => "sick leave",
-        LeaveType.UnpaidLeave => "unpaid leave",
-        LeaveType.MaternityLeave => "maternity leave",
-        LeaveType.PaternityLeave => "paternity leave",
-        _ => "leave"
-    };
 
     private DateTime Now => clock.GetUtcNow().UtcDateTime;
 }

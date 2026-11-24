@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
 import { ListChecks } from 'lucide-react'
 import { useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { useNavigate } from 'react-router'
 import { tasksApi, type TaskQuery } from '@/api/endpoints'
 import { DataTable, type SortState } from '@/components/common/data-table'
@@ -9,6 +10,7 @@ import { taskColumns } from './task-columns'
 
 /** Self-contained task table for embedding in detail pages (employee, project). */
 export function EmbeddedTasksTable({ filter, hideProject }: { filter: TaskQuery; hideProject?: boolean }) {
+  const { t } = useTranslation()
   const navigate = useNavigate()
   const [page, setPage] = useState(1)
   const [sort, setSort] = useState<SortState>({ sortBy: 'dueDate', sortDirection: 'asc' })
@@ -32,7 +34,7 @@ export function EmbeddedTasksTable({ filter, hideProject }: { filter: TaskQuery;
       onSortChange={setSort}
       onPageChange={setPage}
       onRowClick={(t) => navigate(`/tasks/${t.id}`)}
-      empty={<EmptyState icon={ListChecks} title="No tasks" />}
+      empty={<EmptyState icon={ListChecks} title={t('tasks.list.noTasks')} />}
     />
   )
 }

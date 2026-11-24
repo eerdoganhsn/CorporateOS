@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
 import { ClipboardCheck, Download, MoreHorizontal, Pencil, Plus, Receipt, Send, Trash2 } from 'lucide-react'
 import { useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { Link, useNavigate } from 'react-router'
 import { expensesApi } from '@/api/endpoints'
 import { ConfirmDialog } from '@/components/common/confirm-dialog'
@@ -21,6 +22,7 @@ import type { Expense } from '@/types/models'
 import { formatCurrency } from '@/utils/format'
 
 export default function MyExpensesPage() {
+  const { t } = useTranslation()
   const navigate = useNavigate()
   const { isManagerOrAbove } = usePermissions()
   const table = useTableState(['status', 'category'] as const, { sortBy: 'expenseDate', sortDirection: 'desc' })
@@ -38,8 +40,8 @@ export default function MyExpensesPage() {
   const list = useQuery({ queryKey: ['expenses', 'list', query], queryFn: () => expensesApi.list(query), placeholderData: (p) => p })
 
   const invalidate = [['expenses'], ['dashboard']]
-  const submit = useApiMutation({ mutationFn: (id: number) => expensesApi.submit(id), invalidate, successMessage: 'Expense submitted for approval.' })
-  const remove = useApiMutation({ mutationFn: (id: number) => expensesApi.remove(id), invalidate, successMessage: 'Draft deleted.' })
+  const submit = useApiMutation({ mutationFn: (id: number) => expensesApi.submit(id), invalidate, successMessage: t('expenses.mine.submitted') })
+  const remove = useApiMutation({ mutationFn: (id: number) => expensesApi.remove(id), invalidate, successMessage: t('expenses.mine.draftDeleted') })
   const download = useApiMutation({ mutationFn: (id: number) => expensesApi.downloadReceipt(id) })
 
   const columns: Column<Expense>[] = [
@@ -52,7 +54,7 @@ export default function MyExpensesPage() {
         e.canEdit || e.hasReceipt ? (
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="icon-sm" aria-label="Expense actions" onClick={(ev) => ev.stopPropagation()}>
+              <Button variant="ghost" size="icon-sm" aria-label={t('expenses.mine.actions')} onClick={(ev) => ev.stopPropagation()}>
                 <MoreHorizontal />
               </Button>
             </DropdownMenuTrigger>
@@ -61,18 +63,18 @@ export default function MyExpensesPage() {
                 <>
                   <DropdownMenuItem onSelect={() => navigate(`/expenses/${e.id}/edit`)}>
                     <Pencil />
-                    Edit
+                    {t('expenses.mine.edit')}
                   </DropdownMenuItem>
                   <DropdownMenuItem onSelect={() => setConfirm({ expense: e, action: 'submit' })}>
                     <Send />
-                    {e.status === 'Rejected' ? 'Resubmit' : 'Submit for approval'}
+                    {e.status === 'Rejected' ? t('expenses.mine.resubmit') : t('expenses.mine.submitForApproval')}
                   </DropdownMenuItem>
                 </>
               )}
               {e.hasReceipt && (
                 <DropdownMenuItem onSelect={() => download.mutate(e.id)}>
                   <Download />
-                  Download receipt
+                  {t('expenses.mine.downloadReceipt')}
                 </DropdownMenuItem>
               )}
               {e.status === 'Draft' && (
@@ -80,7 +82,7 @@ export default function MyExpensesPage() {
                   <DropdownMenuSeparator />
                   <DropdownMenuItem variant="destructive" onSelect={() => setConfirm({ expense: e, action: 'delete' })}>
                     <Trash2 />
-                    Delete draft
+                    {t('expenses.mine.deleteDraft')}
                   </DropdownMenuItem>
                 </>
               )}
@@ -90,26 +92,26 @@ export default function MyExpensesPage() {
     },
   ]
 
-  const t = totals.data
+  const sums = totals.data
   return (
     <>
       <PageHeader
-        title="Expense Management"
-        description="Submit expense claims with receipts and follow their approval."
+        title={t('expenses.title')}
+        description={t('expenses.mine.description')}
         actions={
           <>
             {isManagerOrAbove && (
               <Button variant="outline" asChild>
                 <Link to="/expenses/approvals">
                   <ClipboardCheck />
-                  Approvals
+                  {t('expenses.mine.approvals')}
                 </Link>
               </Button>
             )}
             <Button asChild>
               <Link to="/expenses/new">
                 <Plus />
-                New expense
+                {t('expenses.mine.create')}
               </Link>
             </Button>
           </>
@@ -117,17 +119,33 @@ export default function MyExpensesPage() {
       />
 
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-        <StatCard label="Drafts" value={formatCurrency(t?.draftAmount ?? 0)} icon={Receipt} hint="Not yet submitted" />
-        <StatCard label="Awaiting approval" value={formatCurrency(t?.submittedAmount ?? 0)} tone={t?.submittedAmount ? 'warning' : 'default'} />
-        <StatCard label="Approved" value={formatCurrency(t?.approvedAmount ?? 0)} hint="Pending reimbursement" />
-        <StatCard label="Reimbursed" value={formatCurrency(t?.paidAmount ?? 0)} hint="This year" />
+        <StatCard label={t('expenses.mine.drafts')} value={formatCurrency(sums?.draftAmount ?? 0)} icon={Receipt} hint={t('expenses.mine.draftsHint')} />
+        <StatCard
+          label={t('expenses.mine.awaiting')}
+          value={formatCurrency(sums?.submittedAmount ?? 0)}
+          tone={sums?.submittedAmount ? 'warning' : 'default'}
+        />
+        <StatCard label={t('expenses.mine.approved')} value={formatCurrency(sums?.approvedAmount ?? 0)} hint={t('expenses.mine.approvedHint')} />
+        <StatCard label={t('expenses.mine.reimbursed')} value={formatCurrency(sums?.paidAmount ?? 0)} hint={t('expenses.mine.reimbursedHint')} />
       </div>
 
       <Card className="mt-6">
         <FilterBar onReset={table.reset} showReset={table.hasActiveFilters}>
-          <p className="mr-auto text-sm font-semibold">My expenses</p>
-          <FilterSelect label="All categories" value={table.filters.category} onChange={(v) => table.setFilter('category', v)} options={EXPENSE_CATEGORIES} />
-          <FilterSelect label="All statuses" value={table.filters.status} onChange={(v) => table.setFilter('status', v)} options={EXPENSE_STATUSES} />
+          <p className="mr-auto text-sm font-semibold">{t('expenses.mine.myExpenses')}</p>
+          <FilterSelect
+            label={t('expenses.mine.allCategories')}
+            value={table.filters.category}
+            onChange={(v) => table.setFilter('category', v)}
+            options={EXPENSE_CATEGORIES}
+            enumType="ExpenseCategory"
+          />
+          <FilterSelect
+            label={t('expenses.mine.allStatuses')}
+            value={table.filters.status}
+            onChange={(v) => table.setFilter('status', v)}
+            options={EXPENSE_STATUSES}
+            enumType="ExpenseStatus"
+          />
         </FilterBar>
         <DataTable
           columns={columns}
@@ -143,11 +161,11 @@ export default function MyExpensesPage() {
           empty={
             <EmptyState
               icon={Receipt}
-              title="No expenses yet"
-              description="Create a claim, attach the receipt and submit it for approval."
+              title={t('expenses.mine.none')}
+              description={t('expenses.mine.noneHint')}
               action={
                 <Button asChild size="sm">
-                  <Link to="/expenses/new">New expense</Link>
+                  <Link to="/expenses/new">{t('expenses.mine.create')}</Link>
                 </Button>
               }
             />
@@ -158,24 +176,24 @@ export default function MyExpensesPage() {
       <ConfirmDialog
         open={confirm?.action === 'submit'}
         onOpenChange={(open) => !open && setConfirm(null)}
-        title="Submit for approval?"
+        title={t('expenses.mine.confirmSubmitTitle')}
         description={
           confirm ? (
             <>
               {formatCurrency(confirm.expense.amount, confirm.expense.currency)} — {confirm.expense.description}.
-              {!confirm.expense.hasReceipt && <span className="mt-2 block text-amber-700">No receipt is attached. Claims above 25 USD usually require one.</span>}
+              {!confirm.expense.hasReceipt && <span className="mt-2 block text-amber-700">{t('expenses.mine.noReceipt')}</span>}
             </>
           ) : null
         }
-        confirmLabel="Submit"
+        confirmLabel={t('expenses.mine.submit')}
         onConfirm={() => submit.mutateAsync(confirm!.expense.id)}
       />
       <ConfirmDialog
         open={confirm?.action === 'delete'}
         onOpenChange={(open) => !open && setConfirm(null)}
-        title="Delete this draft?"
-        description="The draft and its receipt will be permanently removed."
-        confirmLabel="Delete"
+        title={t('expenses.mine.confirmDeleteTitle')}
+        description={t('expenses.mine.confirmDeleteBody')}
+        confirmLabel={t('common.actions.delete')}
         destructive
         onConfirm={() => remove.mutateAsync(confirm!.expense.id)}
       />

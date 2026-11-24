@@ -158,14 +158,16 @@ public sealed class AuthService(
         var link = $"{urls.Value.FrontendUrl.TrimEnd('/')}/reset-password" +
                    $"?email={Uri.EscapeDataString(user.Email!)}&token={Uri.EscapeDataString(token)}";
 
+        // Written in the recipient's language, not the language of whoever triggered the request.
+        var language = Languages.Normalize(user.PreferredLanguage);
         await email.SendAsync(
             user.Email!,
-            Text.Get("auth.resetEmail.subject"),
+            Text.For(language, "auth.resetEmail.subject"),
             $"""
-             <p>Hello {WebUtility.HtmlEncode(user.DisplayName)},</p>
-             <p>We received a request to reset your password. The link below is valid for a limited time.</p>
-             <p><a href="{link}">Reset password</a></p>
-             <p>If you did not request this, you can ignore this email.</p>
+             <p>{WebUtility.HtmlEncode(Text.For(language, "auth.resetEmail.greeting", user.DisplayName))}</p>
+             <p>{WebUtility.HtmlEncode(Text.For(language, "auth.resetEmail.body"))}</p>
+             <p><a href="{WebUtility.HtmlEncode(link)}">{WebUtility.HtmlEncode(Text.For(language, "auth.resetEmail.button"))}</a></p>
+             <p>{WebUtility.HtmlEncode(Text.For(language, "auth.resetEmail.ignore"))}</p>
              """,
             cancellationToken);
 

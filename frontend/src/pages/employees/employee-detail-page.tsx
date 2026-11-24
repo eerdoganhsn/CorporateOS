@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
 import { Camera, MoreHorizontal, Pencil, Trash2, UserCheck, UserX } from 'lucide-react'
 import { useRef, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router'
 import { employeesApi } from '@/api/endpoints'
 import { RoleBadge, StatusBadge } from '@/components/common/badges'
@@ -17,9 +18,11 @@ import { EmployeeActivity, EmployeeExpenses, EmployeeLeave, EmployeeProjects } f
 import { EmbeddedTasksTable } from '@/features/tasks/tasks-table'
 import { useApiMutation } from '@/hooks/use-api-mutation'
 import { usePermissions } from '@/store/auth-store'
-import { formatCurrency, formatDate, formatRelative, humanize } from '@/utils/format'
+import { enumLabel } from '@/i18n/enum-label'
+import { formatCurrency, formatDate, formatRelative } from '@/utils/format'
 
 export default function EmployeeDetailPage() {
+  const { t } = useTranslation()
   const employeeId = Number(useParams().id)
   const navigate = useNavigate()
   const { isAdmin, user } = usePermissions()
@@ -36,18 +39,18 @@ export default function EmployeeDetailPage() {
   const changeStatus = useApiMutation({
     mutationFn: (status: 'Active' | 'Inactive') => employeesApi.changeStatus(employeeId, status),
     invalidate,
-    successMessage: (e) => `${e.fullName} is now ${humanize(e.status).toLowerCase()}.`,
+    successMessage: (e) => t('employees.detail.statusChanged', { name: e.fullName, status: enumLabel('EmployeeStatus', e.status).toLocaleLowerCase() }),
   })
   const remove = useApiMutation({
     mutationFn: () => employeesApi.remove(employeeId),
     invalidate,
-    successMessage: 'Employee deleted.',
+    successMessage: t('employees.detail.deleted'),
     onSuccess: () => navigate('/employees', { replace: true }),
   })
   const uploadImage = useApiMutation({
     mutationFn: (file: File) => employeesApi.uploadImage(employeeId, file),
     invalidate: [['employees', employeeId]],
-    successMessage: 'Profile photo updated.',
+    successMessage: t('employees.detail.photoUpdated'),
   })
 
   if (isLoading) return <PageSkeleton />
@@ -60,11 +63,11 @@ export default function EmployeeDetailPage() {
   return (
     <>
       <PageHeader
-        back={{ to: '/employees', label: 'Employees' }}
+        back={{ to: '/employees', label: t('employees.list.title') }}
         title={
           <span className="flex items-center gap-3">
             {employee.fullName}
-            <StatusBadge status={employee.status} />
+            <StatusBadge status={employee.status} type="EmployeeStatus" />
           </span>
         }
         description={`${employee.positionTitle} · ${employee.departmentName} · ${employee.employeeNumber}`}
@@ -74,12 +77,12 @@ export default function EmployeeDetailPage() {
               <Button variant="outline" asChild>
                 <Link to={`/employees/${employee.id}/edit`}>
                   <Pencil />
-                  Edit
+                  {t('common.actions.edit')}
                 </Link>
               </Button>
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="outline" size="icon" aria-label="More actions">
+                  <Button variant="outline" size="icon" aria-label={t('employees.detail.moreActions')}>
                     <MoreHorizontal />
                   </Button>
                 </DropdownMenuTrigger>
@@ -87,18 +90,18 @@ export default function EmployeeDetailPage() {
                   {employee.status === 'Active' || employee.status === 'OnLeave' ? (
                     <DropdownMenuItem onSelect={() => setConfirm('deactivate')} disabled={isSelf}>
                       <UserX />
-                      Deactivate
+                      {t('employees.detail.deactivate')}
                     </DropdownMenuItem>
                   ) : (
                     <DropdownMenuItem onSelect={() => changeStatus.mutate('Active')}>
                       <UserCheck />
-                      Activate
+                      {t('employees.detail.activate')}
                     </DropdownMenuItem>
                   )}
                   <DropdownMenuSeparator />
                   <DropdownMenuItem variant="destructive" onSelect={() => setConfirm('delete')} disabled={isSelf}>
                     <Trash2 />
-                    Delete employee
+                    {t('employees.detail.delete')}
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
@@ -118,7 +121,7 @@ export default function EmployeeDetailPage() {
                     type="button"
                     onClick={() => fileInput.current?.click()}
                     className="absolute right-0 bottom-0 flex size-8 items-center justify-center rounded-full border bg-background shadow-sm hover:bg-muted"
-                    aria-label="Change profile photo"
+                    aria-label={t('employees.detail.changePhoto')}
                   >
                     <Camera className="size-4" />
                   </button>
@@ -139,22 +142,22 @@ export default function EmployeeDetailPage() {
             <p className="mt-3 font-semibold">{employee.fullName}</p>
             <p className="text-sm text-muted-foreground">{employee.positionTitle}</p>
             <div className="mt-2 flex flex-wrap justify-center gap-1.5">
-              <Badge variant="outline">{humanize(employee.employmentType)}</Badge>
+              <Badge variant="outline">{enumLabel('EmploymentType', employee.employmentType)}</Badge>
               {employee.account?.roles.map((r) => <RoleBadge key={r} role={r} />)}
             </div>
             <dl className="mt-6 grid w-full gap-4 text-left">
-              <DetailItem label="Email">
+              <DetailItem label={t('employees.detail.email')}>
                 <a href={`mailto:${employee.email}`} className="hover:underline">
                   {employee.email}
                 </a>
               </DetailItem>
-              <DetailItem label="Phone">{employee.phone}</DetailItem>
-              <DetailItem label="Department">
+              <DetailItem label={t('employees.detail.phone')}>{employee.phone}</DetailItem>
+              <DetailItem label={t('employees.columns.department')}>
                 <Link to={`/departments/${employee.departmentId}`} className="hover:underline">
                   {employee.departmentName}
                 </Link>
               </DetailItem>
-              <DetailItem label="Manager">
+              <DetailItem label={t('employees.columns.manager')}>
                 {employee.manager ? (
                   <Link to={`/employees/${employee.manager.id}`} className="hover:underline">
                     {employee.manager.fullName}
@@ -168,44 +171,48 @@ export default function EmployeeDetailPage() {
         <Card className="min-w-0">
           <Tabs value={tab} onValueChange={(v) => setParams({ tab: v }, { replace: true })} className="gap-0">
             <TabsList className="px-3">
-              <TabsTrigger value="overview">Overview</TabsTrigger>
-              <TabsTrigger value="projects">Projects</TabsTrigger>
-              <TabsTrigger value="tasks">Tasks</TabsTrigger>
-              <TabsTrigger value="leave">Leave</TabsTrigger>
-              <TabsTrigger value="expenses">Expenses</TabsTrigger>
-              <TabsTrigger value="activity">Activity</TabsTrigger>
+              <TabsTrigger value="overview">{t('employees.detail.tabs.overview')}</TabsTrigger>
+              <TabsTrigger value="projects">{t('employees.detail.tabs.projects')}</TabsTrigger>
+              <TabsTrigger value="tasks">{t('employees.detail.tabs.tasks')}</TabsTrigger>
+              <TabsTrigger value="leave">{t('employees.detail.tabs.leave')}</TabsTrigger>
+              <TabsTrigger value="expenses">{t('employees.detail.tabs.expenses')}</TabsTrigger>
+              <TabsTrigger value="activity">{t('employees.detail.tabs.activity')}</TabsTrigger>
             </TabsList>
             <TabsContent value="overview">
               <div className="space-y-6 p-5">
                 <section>
-                  <h3 className="mb-3 text-sm font-semibold">Employment</h3>
+                  <h3 className="mb-3 text-sm font-semibold">{t('employees.detail.employment')}</h3>
                   <dl className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                    <DetailItem label="Employee number">{employee.employeeNumber}</DetailItem>
-                    <DetailItem label="Hire date">{formatDate(employee.hireDate)}</DetailItem>
-                    <DetailItem label="Employment type">{humanize(employee.employmentType)}</DetailItem>
-                    <DetailItem label="Status">{humanize(employee.status)}</DetailItem>
-                    <DetailItem label="Direct reports">{employee.directReportCount}</DetailItem>
-                    {employee.canViewSalary && <DetailItem label="Annual salary">{formatCurrency(employee.salary)}</DetailItem>}
+                    <DetailItem label={t('employees.detail.employeeNumber')}>{employee.employeeNumber}</DetailItem>
+                    <DetailItem label={t('employees.detail.hireDate')}>{formatDate(employee.hireDate)}</DetailItem>
+                    <DetailItem label={t('employees.detail.employmentType')}>{enumLabel('EmploymentType', employee.employmentType)}</DetailItem>
+                    <DetailItem label={t('employees.detail.status')}>{enumLabel('EmployeeStatus', employee.status)}</DetailItem>
+                    <DetailItem label={t('employees.detail.directReports')}>{employee.directReportCount}</DetailItem>
+                    {employee.canViewSalary && <DetailItem label={t('employees.detail.salary')}>{formatCurrency(employee.salary)}</DetailItem>}
                   </dl>
                 </section>
                 <section>
-                  <h3 className="mb-3 text-sm font-semibold">Personal & emergency contact</h3>
+                  <h3 className="mb-3 text-sm font-semibold">{t('employees.detail.personal')}</h3>
                   <dl className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                    <DetailItem label="Birth date">{employee.birthDate ? formatDate(employee.birthDate) : null}</DetailItem>
-                    <DetailItem label="Address" className="sm:col-span-2">{employee.address}</DetailItem>
-                    <DetailItem label="Emergency contact">{employee.emergencyContactName}</DetailItem>
-                    <DetailItem label="Emergency phone">{employee.emergencyContactPhone}</DetailItem>
+                    <DetailItem label={t('employees.detail.birthDate')}>{employee.birthDate ? formatDate(employee.birthDate) : null}</DetailItem>
+                    <DetailItem label={t('employees.detail.address')} className="sm:col-span-2">{employee.address}</DetailItem>
+                    <DetailItem label={t('employees.detail.emergencyContact')}>{employee.emergencyContactName}</DetailItem>
+                    <DetailItem label={t('employees.detail.emergencyPhone')}>{employee.emergencyContactPhone}</DetailItem>
                   </dl>
                 </section>
                 {employee.account && (
                   <section>
-                    <h3 className="mb-3 text-sm font-semibold">Sign-in account</h3>
+                    <h3 className="mb-3 text-sm font-semibold">{t('employees.detail.account')}</h3>
                     <dl className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                      <DetailItem label="Account status">
-                        {employee.account.isLocked ? 'Locked' : employee.account.isActive ? 'Active' : 'Deactivated'}
+                      <DetailItem label={t('employees.detail.accountStatus')}>
+                        {employee.account.isLocked
+                          ? t('employees.detail.locked')
+                          : employee.account.isActive
+                            ? t('employees.detail.active')
+                            : t('employees.detail.deactivated')}
                       </DetailItem>
-                      <DetailItem label="Last sign-in">{employee.account.lastLoginAt ? formatRelative(employee.account.lastLoginAt) : 'Never'}</DetailItem>
-                      <DetailItem label="Roles">{employee.account.roles.map(humanize).join(', ')}</DetailItem>
+                      <DetailItem label={t('employees.detail.lastSignIn')}>{employee.account.lastLoginAt ? formatRelative(employee.account.lastLoginAt) : t('employees.detail.never')}</DetailItem>
+                      <DetailItem label={t('employees.detail.roles')}>{employee.account.roles.map((r) => enumLabel('Role', r)).join(', ')}</DetailItem>
                     </dl>
                   </section>
                 )}
@@ -233,18 +240,18 @@ export default function EmployeeDetailPage() {
       <ConfirmDialog
         open={confirm === 'deactivate'}
         onOpenChange={(open) => !open && setConfirm(null)}
-        title={`Deactivate ${employee.fullName}?`}
-        description="Their sign-in account will be disabled and active sessions ended. You can reactivate them later."
-        confirmLabel="Deactivate"
+        title={t('employees.detail.confirmDeactivateTitle', { name: employee.fullName })}
+        description={t('employees.detail.confirmDeactivateBody')}
+        confirmLabel={t('employees.detail.deactivate')}
         destructive
         onConfirm={() => changeStatus.mutateAsync('Inactive')}
       />
       <ConfirmDialog
         open={confirm === 'delete'}
         onOpenChange={(open) => !open && setConfirm(null)}
-        title={`Delete ${employee.fullName}?`}
-        description="The record is archived (soft-deleted) and removed from lists; history such as leave, expenses and audit entries is retained. Their account is deactivated."
-        confirmLabel="Delete employee"
+        title={t('employees.detail.confirmDeleteTitle', { name: employee.fullName })}
+        description={t('employees.detail.confirmDeleteBody')}
+        confirmLabel={t('employees.detail.delete')}
         destructive
         onConfirm={() => remove.mutateAsync()}
       />

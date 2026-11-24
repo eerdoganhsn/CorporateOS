@@ -1,4 +1,5 @@
 import { Columns3, List, Plus } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 import { NavLink } from 'react-router'
 import { FilterSelect, SearchInput } from '@/components/common/filters'
 import { Button } from '@/components/ui/button'
@@ -10,22 +11,23 @@ import { cn } from '@/utils/cn'
 import type { TaskTableState } from './task-query'
 
 export function TaskViewSwitcher({ onCreate }: { onCreate?: () => void }) {
+  const { t } = useTranslation()
   const linkClass = ({ isActive }: { isActive: boolean }) =>
     cn('inline-flex h-8 items-center gap-1.5 rounded-md px-3 text-sm font-medium', isActive ? 'bg-background shadow-xs' : 'text-muted-foreground hover:text-foreground')
   return (
     <div className="flex items-center gap-2">
       <div className="flex rounded-md border bg-muted/50 p-0.5">
         <NavLink to="/tasks" end className={linkClass}>
-          <List className="size-4" /> List
+          <List className="size-4" /> {t('tasks.views.list')}
         </NavLink>
         <NavLink to="/tasks/board" className={linkClass}>
-          <Columns3 className="size-4" /> Board
+          <Columns3 className="size-4" /> {t('tasks.views.board')}
         </NavLink>
       </div>
       {onCreate && (
         <Button onClick={onCreate}>
           <Plus />
-          New Task
+          {t('tasks.views.create')}
         </Button>
       )}
     </div>
@@ -33,43 +35,58 @@ export function TaskViewSwitcher({ onCreate }: { onCreate?: () => void }) {
 }
 
 export function TaskFilterControls({ table, hideStatus }: { table: TaskTableState; hideStatus?: boolean }) {
+  const { t } = useTranslation()
   const { isManagerOrAbove } = usePermissions()
   const projects = useProjectLookup()
   const employees = useEmployeeLookup()
 
   return (
     <>
-      <SearchInput value={table.search} onChange={table.setSearch} placeholder="Search tasks…" />
+      <SearchInput value={table.search} onChange={table.setSearch} placeholder={t('tasks.filters.search')} />
       <FilterSelect
-        label="All projects"
+        label={t('tasks.filters.allProjects')}
         value={table.filters.projectId}
         onChange={(v) => table.setFilter('projectId', v)}
         options={(projects.data ?? []).map((p) => ({ value: p.id, label: `${p.projectCode} — ${p.name}` }))}
       />
       {isManagerOrAbove && (
         <FilterSelect
-          label="All assignees"
+          label={t('tasks.filters.allAssignees')}
           value={table.filters.assignedToId}
           onChange={(v) => table.setFilter('assignedToId', v)}
           options={(employees.data ?? []).map((e) => ({ value: e.id, label: e.name }))}
         />
       )}
-      {!hideStatus && <FilterSelect label="All statuses" value={table.filters.status} onChange={(v) => table.setFilter('status', v)} options={TASK_STATUSES} />}
-      <FilterSelect label="All priorities" value={table.filters.priority} onChange={(v) => table.setFilter('priority', v)} options={PRIORITIES} />
+      {!hideStatus && (
+        <FilterSelect
+          label={t('tasks.filters.allStatuses')}
+          value={table.filters.status}
+          onChange={(v) => table.setFilter('status', v)}
+          options={TASK_STATUSES}
+          enumType="TaskStatus"
+        />
+      )}
+      <FilterSelect
+        label={t('tasks.filters.allPriorities')}
+        value={table.filters.priority}
+        onChange={(v) => table.setFilter('priority', v)}
+        options={PRIORITIES}
+        enumType="Priority"
+      />
       <div className="flex items-center gap-1.5">
         <Input
           type="date"
-          aria-label="Due from"
-          title="Due from"
+          aria-label={t('tasks.filters.dueFrom')}
+          title={t('tasks.filters.dueFrom')}
           value={table.filters.dueFrom ?? ''}
           onChange={(e) => table.setFilter('dueFrom', e.target.value || undefined)}
           className="w-full sm:w-36"
         />
-        <span className="text-xs text-muted-foreground">to</span>
+        <span className="text-xs text-muted-foreground">{t('tasks.filters.to')}</span>
         <Input
           type="date"
-          aria-label="Due to"
-          title="Due to"
+          aria-label={t('tasks.filters.dueTo')}
+          title={t('tasks.filters.dueTo')}
           value={table.filters.dueTo ?? ''}
           onChange={(e) => table.setFilter('dueTo', e.target.value || undefined)}
           className="w-full sm:w-36"
@@ -79,7 +96,7 @@ export function TaskFilterControls({ table, hideStatus }: { table: TaskTableStat
         <div className="flex items-center gap-2">
           <Checkbox id="mine" checked={table.filters.mine === 'true'} onCheckedChange={(c) => table.setFilter('mine', c === true ? 'true' : undefined)} />
           <Label htmlFor="mine" className="font-normal">
-            Assigned to me
+            {t('tasks.filters.mine')}
           </Label>
         </div>
         <div className="flex items-center gap-2">
@@ -89,7 +106,7 @@ export function TaskFilterControls({ table, hideStatus }: { table: TaskTableStat
             onCheckedChange={(c) => table.setFilter('overdueOnly', c === true ? 'true' : undefined)}
           />
           <Label htmlFor="overdueOnly" className="font-normal">
-            Overdue only
+            {t('tasks.filters.overdueOnly')}
           </Label>
         </div>
       </div>

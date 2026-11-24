@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
 import { Banknote, Check, ClipboardCheck, Download, X } from 'lucide-react'
 import { useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { useSearchParams } from 'react-router'
 import { expensesApi } from '@/api/endpoints'
 import { ConfirmDialog } from '@/components/common/confirm-dialog'
@@ -21,19 +22,21 @@ import { useTableState } from '@/hooks/use-table-state'
 import { usePermissions } from '@/store/auth-store'
 import { EXPENSE_CATEGORIES, EXPENSE_STATUSES, type ExpenseCategory, type ExpenseStatus } from '@/types/enums'
 import type { Expense } from '@/types/models'
-import { formatCurrency, humanize } from '@/utils/format'
+import { enumLabel } from '@/i18n/enum-label'
+import { formatCurrency } from '@/utils/format'
 
 export default function ExpenseApprovalsPage() {
+  const { t } = useTranslation()
   const [params, setParams] = useSearchParams()
   const tab = params.get('tab') ?? 'pending'
   return (
     <>
-      <PageHeader title="Expense approvals" description="Review submitted claims and track reimbursements." back={{ to: '/expenses', label: 'Expense Management' }} />
+      <PageHeader title={t('expenses.approvals.title')} description={t('expenses.approvals.description')} back={{ to: '/expenses', label: t('expenses.title') }} />
       <Card>
         <Tabs value={tab} onValueChange={(v) => setParams({ tab: v }, { replace: true })} className="gap-0">
           <TabsList className="px-3">
-            <TabsTrigger value="pending">Pending</TabsTrigger>
-            <TabsTrigger value="all">All claims</TabsTrigger>
+            <TabsTrigger value="pending">{t('expenses.approvals.tabs.pending')}</TabsTrigger>
+            <TabsTrigger value="all">{t('expenses.approvals.tabs.all')}</TabsTrigger>
           </TabsList>
           <TabsContent value="pending">
             <PendingExpenses />
@@ -48,6 +51,7 @@ export default function ExpenseApprovalsPage() {
 }
 
 function useExpenseActions() {
+  const { t } = useTranslation()
   const [decision, setDecision] = useState<{ expense: Expense; decision: Decision } | null>(null)
   const [paying, setPaying] = useState<Expense | null>(null)
   const invalidate = [['expenses'], ['dashboard'], ['notifications']]
@@ -55,14 +59,14 @@ function useExpenseActions() {
   const approve = useApiMutation({
     mutationFn: ({ id, note }: { id: number; note: string }) => expensesApi.approve(id, note || undefined),
     invalidate,
-    successMessage: (e) => `Approved ${formatCurrency(e.amount, e.currency)} for ${e.employeeName}.`,
+    successMessage: (e) => t('expenses.approvals.approved', { amount: formatCurrency(e.amount, e.currency), name: e.employeeName }),
   })
   const reject = useApiMutation({
     mutationFn: ({ id, reason }: { id: number; reason: string }) => expensesApi.reject(id, reason),
     invalidate,
-    successMessage: (e) => `Rejected ${e.employeeName}'s claim.`,
+    successMessage: (e) => t('expenses.approvals.rejected', { name: e.employeeName }),
   })
-  const markPaid = useApiMutation({ mutationFn: (id: number) => expensesApi.markPaid(id), invalidate, successMessage: 'Marked as paid.' })
+  const markPaid = useApiMutation({ mutationFn: (id: number) => expensesApi.markPaid(id), invalidate, successMessage: t('expenses.approvals.paid') })
   const download = useApiMutation({ mutationFn: (id: number) => expensesApi.downloadReceipt(id) })
 
   const actionColumn: Column<Expense> = {
@@ -72,8 +76,8 @@ function useExpenseActions() {
     cell: (e) => (
       <div className="flex justify-end gap-1.5">
         {e.hasReceipt && (
-          <Tooltip content="Download receipt">
-            <Button size="icon-sm" variant="ghost" aria-label="Download receipt" onClick={() => download.mutate(e.id)}>
+          <Tooltip content={t('expenses.approvals.downloadReceipt')}>
+            <Button size="icon-sm" variant="ghost" aria-label={t('expenses.approvals.downloadReceipt')} onClick={() => download.mutate(e.id)}>
               <Download />
             </Button>
           </Tooltip>
@@ -82,18 +86,18 @@ function useExpenseActions() {
           <>
             <Button size="sm" variant="outline" onClick={() => setDecision({ expense: e, decision: 'reject' })}>
               <X />
-              Reject
+              {t('common.actions.reject')}
             </Button>
             <Button size="sm" onClick={() => setDecision({ expense: e, decision: 'approve' })}>
               <Check />
-              Approve
+              {t('common.actions.approve')}
             </Button>
           </>
         )}
         {e.canMarkPaid && (
           <Button size="sm" variant="outline" onClick={() => setPaying(e)}>
             <Banknote />
-            Mark paid
+            {t('expenses.approvals.markPaid')}
           </Button>
         )}
       </div>
@@ -104,7 +108,16 @@ function useExpenseActions() {
     <>
       <DecisionDialog
         decision={decision?.decision ?? null}
-        subject={decision ? `${decision.expense.employeeName} · ${humanize(decision.expense.category)} · ${formatCurrency(decision.expense.amount, decision.expense.currency)} — ${decision.expense.description}` : ''}
+        subject={
+          decision
+            ? t('expenses.approvals.subject', {
+                name: decision.expense.employeeName,
+                category: enumLabel('ExpenseCategory', decision.expense.category),
+                amount: formatCurrency(decision.expense.amount, decision.expense.currency),
+                description: decision.expense.description,
+              })
+            : ''
+        }
         onClose={() => setDecision(null)}
         onSubmit={(text) =>
           decision!.decision === 'approve' ? approve.mutateAsync({ id: decision!.expense.id, note: text }) : reject.mutateAsync({ id: decision!.expense.id, reason: text })
@@ -113,9 +126,9 @@ function useExpenseActions() {
       <ConfirmDialog
         open={!!paying}
         onOpenChange={(open) => !open && setPaying(null)}
-        title="Mark as reimbursed?"
-        description={paying ? `${formatCurrency(paying.amount, paying.currency)} to ${paying.employeeName}. The employee will be notified.` : ''}
-        confirmLabel="Mark paid"
+        title={t('expenses.approvals.confirmPaidTitle')}
+        description={paying ? t('expenses.approvals.confirmPaidBody', { amount: formatCurrency(paying.amount, paying.currency), name: paying.employeeName }) : ''}
+        confirmLabel={t('expenses.approvals.markPaid')}
         onConfirm={() => markPaid.mutateAsync(paying!.id)}
       />
     </>
@@ -125,6 +138,7 @@ function useExpenseActions() {
 }
 
 function PendingExpenses() {
+  const { t } = useTranslation()
   const [page, setPage] = useState(1)
   const [sort, setSort] = useState<SortState>({ sortBy: 'submittedAt', sortDirection: 'asc' })
   const query = { scope: 'Approvals' as const, page, pageSize: 20, ...sort }
@@ -143,7 +157,7 @@ function PendingExpenses() {
         sort={sort}
         onSortChange={setSort}
         onPageChange={setPage}
-        empty={<EmptyState icon={ClipboardCheck} title="No claims awaiting approval" />}
+        empty={<EmptyState icon={ClipboardCheck} title={t('expenses.approvals.none')} />}
       />
       {dialogs}
     </>
@@ -151,6 +165,7 @@ function PendingExpenses() {
 }
 
 function AllExpenses() {
+  const { t } = useTranslation()
   const { isAdmin } = usePermissions()
   const departments = useDepartmentLookup()
   const table = useTableState(['status', 'category', 'departmentId', 'from', 'to'] as const, { sortBy: 'expenseDate', sortDirection: 'desc' })
@@ -172,19 +187,31 @@ function AllExpenses() {
   return (
     <>
       <FilterBar onReset={table.reset} showReset={table.hasActiveFilters}>
-        <SearchInput value={table.search} onChange={table.setSearch} placeholder="Search employee or description…" />
+        <SearchInput value={table.search} onChange={table.setSearch} placeholder={t('expenses.approvals.search')} />
         {isAdmin && (
           <FilterSelect
-            label="All departments"
+            label={t('expenses.approvals.allDepartments')}
             value={table.filters.departmentId}
             onChange={(v) => table.setFilter('departmentId', v)}
             options={(departments.data ?? []).map((d) => ({ value: d.id, label: d.name }))}
           />
         )}
-        <FilterSelect label="All categories" value={table.filters.category} onChange={(v) => table.setFilter('category', v)} options={EXPENSE_CATEGORIES} />
-        <FilterSelect label="All statuses" value={table.filters.status} onChange={(v) => table.setFilter('status', v)} options={EXPENSE_STATUSES.filter((s) => s !== 'Draft')} />
-        <Input type="date" aria-label="From" className="w-full sm:w-36" value={table.filters.from ?? ''} onChange={(e) => table.setFilter('from', e.target.value || undefined)} />
-        <Input type="date" aria-label="To" className="w-full sm:w-36" value={table.filters.to ?? ''} onChange={(e) => table.setFilter('to', e.target.value || undefined)} />
+        <FilterSelect
+          label={t('expenses.approvals.allCategories')}
+          value={table.filters.category}
+          onChange={(v) => table.setFilter('category', v)}
+          options={EXPENSE_CATEGORIES}
+          enumType="ExpenseCategory"
+        />
+        <FilterSelect
+          label={t('expenses.approvals.allStatuses')}
+          value={table.filters.status}
+          onChange={(v) => table.setFilter('status', v)}
+          options={EXPENSE_STATUSES.filter((s) => s !== 'Draft')}
+          enumType="ExpenseStatus"
+        />
+        <Input type="date" aria-label={t('expenses.approvals.from')} className="w-full sm:w-36" value={table.filters.from ?? ''} onChange={(e) => table.setFilter('from', e.target.value || undefined)} />
+        <Input type="date" aria-label={t('expenses.approvals.to')} className="w-full sm:w-36" value={table.filters.to ?? ''} onChange={(e) => table.setFilter('to', e.target.value || undefined)} />
       </FilterBar>
       <DataTable
         columns={[...expenseColumns({ showEmployee: true }), actionColumn]}

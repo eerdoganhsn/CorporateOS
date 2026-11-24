@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
 import { Building2, Pencil, Plus } from 'lucide-react'
 import { useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { useNavigate } from 'react-router'
 import { departmentsApi } from '@/api/endpoints'
 import { StatusBadge } from '@/components/common/badges'
@@ -17,6 +18,7 @@ import { RECORD_STATUSES, type RecordStatus } from '@/types/enums'
 import type { DepartmentListItem } from '@/types/models'
 
 export default function DepartmentsListPage() {
+  const { t } = useTranslation()
   const navigate = useNavigate()
   const { isAdmin } = usePermissions()
   const table = useTableState(['status'] as const, { sortBy: 'name', sortDirection: 'asc' })
@@ -39,7 +41,7 @@ export default function DepartmentsListPage() {
   const columns: Column<DepartmentListItem>[] = [
     {
       key: 'name',
-      header: 'Department',
+      header: t('organization.departments.columns.department'),
       sortKey: 'name',
       cell: (d) => (
         <div>
@@ -48,11 +50,11 @@ export default function DepartmentsListPage() {
         </div>
       ),
     },
-    { key: 'code', header: 'Code', sortKey: 'code', cell: (d) => <code className="text-xs">{d.code}</code> },
-    { key: 'manager', header: 'Manager', cell: (d) => d.managerName ?? <span className="text-muted-foreground">—</span> },
-    { key: 'employees', header: 'Employees', sortKey: 'employeeCount', className: 'tabular-nums', cell: (d) => d.employeeCount },
-    { key: 'projects', header: 'Active projects', className: 'tabular-nums', cell: (d) => d.activeProjectCount },
-    { key: 'status', header: 'Status', sortKey: 'status', cell: (d) => <StatusBadge status={d.status} /> },
+    { key: 'code', header: t('organization.departments.columns.code'), sortKey: 'code', cell: (d) => <code className="text-xs">{d.code}</code> },
+    { key: 'manager', header: t('organization.departments.columns.manager'), cell: (d) => d.managerName ?? <span className="text-muted-foreground">—</span> },
+    { key: 'employees', header: t('organization.departments.columns.employees'), sortKey: 'employeeCount', className: 'tabular-nums', cell: (d) => d.employeeCount },
+    { key: 'projects', header: t('organization.departments.columns.activeProjects'), className: 'tabular-nums', cell: (d) => d.activeProjectCount },
+    { key: 'status', header: t('organization.departments.columns.status'), sortKey: 'status', cell: (d) => <StatusBadge status={d.status} type="RecordStatus" /> },
   ]
   if (isAdmin) {
     columns.push({
@@ -63,7 +65,7 @@ export default function DepartmentsListPage() {
         <Button
           variant="ghost"
           size="icon-sm"
-          aria-label={`Edit ${d.name}`}
+          aria-label={t('organization.departments.editNamed', { name: d.name })}
           onClick={(e) => {
             e.stopPropagation()
             setEditing({ id: d.id, name: d.name, code: d.code, description: d.description, managerId: d.managerId, status: d.status })
@@ -79,8 +81,8 @@ export default function DepartmentsListPage() {
   return (
     <>
       <PageHeader
-        title="Departments"
-        description={isAdmin ? 'Manage the organizational structure and department leadership.' : 'Your department at a glance.'}
+        title={t('organization.departments.title')}
+        description={isAdmin ? t('organization.departments.descriptionAdmin') : t('organization.departments.descriptionManager')}
         actions={
           isAdmin && (
             <Button
@@ -90,15 +92,21 @@ export default function DepartmentsListPage() {
               }}
             >
               <Plus />
-              Add Department
+              {t('organization.departments.add')}
             </Button>
           )
         }
       />
       <Card>
         <FilterBar onReset={table.reset} showReset={table.hasActiveFilters}>
-          <SearchInput value={table.search} onChange={table.setSearch} placeholder="Search name or code…" />
-          <FilterSelect label="All statuses" value={table.filters.status} onChange={(v) => table.setFilter('status', v)} options={RECORD_STATUSES} />
+          <SearchInput value={table.search} onChange={table.setSearch} placeholder={t('organization.departments.search')} />
+          <FilterSelect
+            label={t('organization.departments.allStatuses')}
+            value={table.filters.status}
+            onChange={(v) => table.setFilter('status', v)}
+            options={RECORD_STATUSES}
+            enumType="RecordStatus"
+          />
         </FilterBar>
         <DataTable
           columns={columns}
@@ -112,7 +120,7 @@ export default function DepartmentsListPage() {
           onPageChange={table.setPage}
           onPageSizeChange={table.setPageSize}
           onRowClick={(d) => navigate(`/departments/${d.id}`)}
-          empty={<EmptyState icon={Building2} title="No departments found" />}
+          empty={<EmptyState icon={Building2} title={t('organization.departments.none')} />}
         />
       </Card>
       <DepartmentDialog open={dialogOpen} onOpenChange={setDialogOpen} department={editing} />

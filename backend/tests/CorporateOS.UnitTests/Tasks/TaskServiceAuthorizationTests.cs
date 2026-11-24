@@ -4,6 +4,7 @@ using CorporateOS.Application.Features.Tasks;
 using CorporateOS.Domain.Constants;
 using CorporateOS.Domain.Entities;
 using CorporateOS.Domain.Enums;
+using CorporateOS.Domain.Localization;
 using CorporateOS.Infrastructure.Persistence;
 using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
@@ -262,11 +263,10 @@ public sealed class TaskServiceAuthorizationTests : IDisposable
 
     private sealed class NoOpNotifications : INotificationPublisher
     {
-        public void Notify(Guid userId, string title, string message, NotificationType type, string? entityType = null, string? entityId = null)
-        {
-        }
+        public Task NotifyUsersAsync(IEnumerable<Guid> userIds, LocalizedText title, LocalizedText message, NotificationType type,
+            string? entityType = null, string? entityId = null, CancellationToken cancellationToken = default) => Task.CompletedTask;
 
-        public Task NotifyEmployeesAsync(IEnumerable<int> employeeIds, string title, string message, NotificationType type,
+        public Task NotifyEmployeesAsync(IEnumerable<int> employeeIds, LocalizedText title, LocalizedText message, NotificationType type,
             string? entityType = null, string? entityId = null, CancellationToken cancellationToken = default) => Task.CompletedTask;
     }
 }

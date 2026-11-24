@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
 import { Briefcase, FileText, FolderKanban, ListChecks, Megaphone, Search, User } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { useNavigate } from 'react-router'
 import { searchApi } from '@/api/endpoints'
 import { Spinner } from '@/components/common/states'
@@ -13,6 +14,7 @@ const ICONS = { Employee: User, Project: FolderKanban, Task: ListChecks, Documen
 
 /** Top-bar search across modules. Press "/" to focus; arrow keys + Enter to navigate. */
 export function GlobalSearch() {
+  const { t, i18n } = useTranslation()
   const [term, setTerm] = useState('')
   const [open, setOpen] = useState(false)
   const [active, setActive] = useState(0)
@@ -66,9 +68,9 @@ export function GlobalSearch() {
               if (e.key === 'Enter' && items[active]) go(items[active].url)
               if (e.key === 'Escape') setOpen(false)
             }}
-            placeholder="Search people, projects, tasks, documents…"
+            placeholder={t('common.search.placeholder')}
             className="h-8 bg-muted/40 pr-8 pl-8"
-            aria-label="Global search"
+            aria-label={t('common.search.label')}
           />
           <kbd className="pointer-events-none absolute top-1/2 right-2 hidden -translate-y-1/2 rounded border bg-background px-1.5 text-[10px] text-muted-foreground sm:block">
             /
@@ -85,7 +87,7 @@ export function GlobalSearch() {
             <Spinner className="text-muted-foreground" />
           </div>
         )}
-        {!isFetching && items.length === 0 && <p className="px-3 py-6 text-center text-sm text-muted-foreground">No results for “{debounced}”.</p>}
+        {!isFetching && items.length === 0 && <p className="px-3 py-6 text-center text-sm text-muted-foreground">{t('common.search.noResults', { term: debounced })}</p>}
         {items.map((item, index) => {
           const Icon = ICONS[item.type as keyof typeof ICONS] ?? Briefcase
           return (
@@ -101,7 +103,9 @@ export function GlobalSearch() {
                 <span className="block truncate text-sm">{item.title}</span>
                 {item.subtitle && <span className="block truncate text-xs text-muted-foreground">{item.subtitle}</span>}
               </span>
-              <span className="text-[11px] text-muted-foreground">{item.type}</span>
+              <span className="text-[11px] text-muted-foreground">
+                {i18n.exists(`common.search.types.${item.type}`) ? t(`common.search.types.${item.type}` as never) : item.type}
+              </span>
             </button>
           )
         })}

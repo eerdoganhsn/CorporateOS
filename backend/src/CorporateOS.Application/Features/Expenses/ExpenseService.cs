@@ -1,4 +1,3 @@
-using System.Globalization;
 using CorporateOS.Application.Common.Exceptions;
 using CorporateOS.Application.Common.Extensions;
 using CorporateOS.Application.Common.Files;
@@ -207,8 +206,8 @@ public sealed class ExpenseService(
 
         var approvers = new[] { employee.ManagerId, employee.Department.ManagerId }
             .Where(a => a.HasValue && a != employee.Id).Select(a => a!.Value);
-        await notifications.NotifyEmployeesAsync(approvers, "Expense awaiting approval",
-            $"{employee.FullName} submitted {Money(expense)} for {expense.Category}: {expense.Description}",
+        await notifications.NotifyEmployeesAsync(approvers, LocalizedText.Of("notify.expenseSubmitted.title"),
+            LocalizedText.Of("notify.expenseSubmitted.message", employee.FullName, expense.Amount, expense.Currency, expense.Category, expense.Description),
             NotificationType.ExpenseSubmitted, EntityName, id.ToString(), cancellationToken);
         audit.Record("Expense.Submitted", EntityName, id.ToString(), newValues: new { expense.Amount, expense.Currency, expense.Status });
         await db.SaveChangesAsync(cancellationToken);
@@ -220,8 +219,8 @@ public sealed class ExpenseService(
         var (scope, expense) = await LoadForDecisionAsync(id, cancellationToken);
         expense.Approve(scope.RequireEmployeeId(), request.Note?.Trim(), Now);
 
-        await notifications.NotifyEmployeesAsync([expense.EmployeeId], "Expense approved",
-            $"Your {expense.Category} expense of {Money(expense)} was approved.", NotificationType.ExpenseApproved,
+        await notifications.NotifyEmployeesAsync([expense.EmployeeId], LocalizedText.Of("notify.expenseApproved.title"),
+            LocalizedText.Of("notify.expenseApproved.message", expense.Category, expense.Amount, expense.Currency), NotificationType.ExpenseApproved,
             EntityName, id.ToString(), cancellationToken);
         audit.Record("Expense.Approved", EntityName, id.ToString(), new { Status = ExpenseStatus.Submitted },
             new { expense.Status, expense.Amount, expense.ApprovalNote });
@@ -234,8 +233,8 @@ public sealed class ExpenseService(
         var (scope, expense) = await LoadForDecisionAsync(id, cancellationToken);
         expense.Reject(scope.RequireEmployeeId(), request.Reason.Trim(), Now);
 
-        await notifications.NotifyEmployeesAsync([expense.EmployeeId], "Expense rejected",
-            $"Your {expense.Category} expense of {Money(expense)} was rejected: {expense.RejectionReason}",
+        await notifications.NotifyEmployeesAsync([expense.EmployeeId], LocalizedText.Of("notify.expenseRejected.title"),
+            LocalizedText.Of("notify.expenseRejected.message", expense.Category, expense.Amount, expense.Currency, expense.RejectionReason),
             NotificationType.ExpenseRejected, EntityName, id.ToString(), cancellationToken);
         audit.Record("Expense.Rejected", EntityName, id.ToString(), new { Status = ExpenseStatus.Submitted },
             new { expense.Status, expense.RejectionReason });
@@ -249,8 +248,8 @@ public sealed class ExpenseService(
                       ?? throw new NotFoundException("Expense", id);
         expense.MarkPaid(Now);
 
-        await notifications.NotifyEmployeesAsync([expense.EmployeeId], "Expense reimbursed",
-            $"Your {expense.Category} expense of {Money(expense)} has been paid.", NotificationType.ExpensePaid,
+        await notifications.NotifyEmployeesAsync([expense.EmployeeId], LocalizedText.Of("notify.expensePaid.title"),
+            LocalizedText.Of("notify.expensePaid.message", expense.Category, expense.Amount, expense.Currency), NotificationType.ExpensePaid,
             EntityName, id.ToString(), cancellationToken);
         audit.Record("Expense.Paid", EntityName, id.ToString(), new { Status = ExpenseStatus.Approved }, new { expense.Status });
         await db.SaveChangesAsync(cancellationToken);
@@ -337,7 +336,6 @@ public sealed class ExpenseService(
 
     private static object Snapshot(Expense e) => new { e.Category, e.Amount, e.Currency, e.ExpenseDate, e.Description, e.Status };
 
-    private static string Money(Expense e) => $"{e.Amount.ToString("N2", CultureInfo.InvariantCulture)} {e.Currency}";
 
     private DateTime Now => clock.GetUtcNow().UtcDateTime;
 }

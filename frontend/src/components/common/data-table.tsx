@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react'
+import { Trans, useTranslation } from 'react-i18next'
 import { ArrowDown, ArrowUp, ArrowUpDown, ChevronLeft, ChevronRight } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { NativeSelect } from '@/components/ui/form-controls'
@@ -53,6 +54,7 @@ export function DataTable<T>({
   empty,
   rowClassName,
 }: DataTableProps<T>) {
+  const { t } = useTranslation()
   const rows = Array.isArray(data) ? data : (data?.items ?? [])
   const paged = data && !Array.isArray(data) ? data : undefined
 
@@ -74,7 +76,7 @@ export function DataTable<T>({
                     type="button"
                     onClick={() => toggleSort(column.sortKey!)}
                     className="-ml-1 inline-flex items-center gap-1 rounded px-1 uppercase hover:text-foreground"
-                    aria-label={`Sort by ${typeof column.header === 'string' ? column.header : column.key}`}
+                    aria-label={t('common.table.sortBy', { column: typeof column.header === 'string' ? column.header : column.key })}
                   >
                     {column.header}
                     {sort?.sortBy === column.sortKey ? (
@@ -115,7 +117,7 @@ export function DataTable<T>({
 
       {isLoading && <TableSkeleton columns={Math.min(columns.length, 6)} />}
       {!isLoading && !!error && <ErrorState error={error} onRetry={onRetry} />}
-      {!isLoading && !error && rows.length === 0 && (empty ?? <EmptyState title="No records found" description="Try adjusting your search or filters." />)}
+      {!isLoading && !error && rows.length === 0 && (empty ?? <EmptyState title={t('common.states.noRecords')} description={t('common.states.noRecordsHint')} />)}
 
       {paged && paged.totalItems > 0 && (
         <Pagination
@@ -146,27 +148,30 @@ function Pagination({
   onPageChange?: (page: number) => void
   onPageSizeChange?: (pageSize: number) => void
 }) {
+  const { t } = useTranslation()
   const from = (page - 1) * pageSize + 1
   const to = Math.min(page * pageSize, totalItems)
 
   return (
     <div className="no-print flex flex-col gap-3 border-t px-3 py-3 text-sm text-muted-foreground sm:flex-row sm:items-center sm:justify-between">
       <span>
-        Showing <span className="font-medium text-foreground">{from}</span>–
-        <span className="font-medium text-foreground">{to}</span> of{' '}
-        <span className="font-medium text-foreground">{totalItems}</span>
+        <Trans
+          i18nKey="common.table.showing"
+          values={{ from, to, total: totalItems }}
+          components={{ b: <span className="font-medium text-foreground" /> }}
+        />
       </span>
       <div className="flex items-center gap-2">
         {onPageSizeChange && (
           <NativeSelect
-            aria-label="Rows per page"
+            aria-label={t('common.table.rowsPerPage')}
             className="h-8 w-[5.5rem] text-xs"
             value={pageSize}
             onChange={(e) => onPageSizeChange(Number(e.target.value))}
           >
             {[10, 20, 50, 100].map((size) => (
               <option key={size} value={size}>
-                {size} / page
+                {t('common.table.perPage', { size })}
               </option>
             ))}
           </NativeSelect>
@@ -176,19 +181,19 @@ function Pagination({
           size="icon-sm"
           onClick={() => onPageChange?.(page - 1)}
           disabled={page <= 1}
-          aria-label="Previous page"
+          aria-label={t('common.table.previousPage')}
         >
           <ChevronLeft />
         </Button>
         <span className="min-w-16 text-center text-xs">
-          Page {page} of {Math.max(totalPages, 1)}
+          {t('common.table.pageOf', { page, total: Math.max(totalPages, 1) })}
         </span>
         <Button
           variant="outline"
           size="icon-sm"
           onClick={() => onPageChange?.(page + 1)}
           disabled={page >= totalPages}
-          aria-label="Next page"
+          aria-label={t('common.table.nextPage')}
         >
           <ChevronRight />
         </Button>

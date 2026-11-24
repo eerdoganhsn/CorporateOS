@@ -1,11 +1,13 @@
 import { useQuery } from '@tanstack/react-query'
 import { differenceInCalendarDays, parseISO } from 'date-fns'
 import { CalendarRange } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 import { Link } from 'react-router'
 import { tasksApi } from '@/api/endpoints'
 import { EmptyState, TableSkeleton } from '@/components/common/states'
 import type { ProjectDetail, TaskListItem } from '@/types/models'
 import { cn } from '@/utils/cn'
+import { enumLabel } from '@/i18n/enum-label'
 import { formatDate } from '@/utils/format'
 
 const STATUS_BAR: Record<string, string> = {
@@ -21,6 +23,7 @@ const STATUS_BAR: Record<string, string> = {
  * across the project window, with a marker for today.
  */
 export function ProjectTimeline({ project }: { project: ProjectDetail }) {
+  const { t } = useTranslation()
   const { data, isLoading } = useQuery({
     queryKey: ['tasks', 'list', { projectId: project.id, pageSize: 100, sortBy: 'dueDate' }],
     queryFn: () => tasksApi.list({ projectId: project.id, pageSize: 100, sortBy: 'dueDate', sortDirection: 'asc' }),
@@ -28,7 +31,7 @@ export function ProjectTimeline({ project }: { project: ProjectDetail }) {
 
   if (isLoading) return <TableSkeleton rows={5} columns={2} />
   const tasks = (data?.items ?? []).filter((t): t is TaskListItem & { dueDate: string } => !!t.dueDate)
-  if (tasks.length === 0) return <EmptyState icon={CalendarRange} title="No scheduled tasks" description="Tasks with due dates appear on the timeline." />
+  if (tasks.length === 0) return <EmptyState icon={CalendarRange} title={t('projects.timeline.none')} description={t('projects.timeline.noneHint')} />
 
   const start = parseISO(project.startDate)
   const lastDue = tasks.reduce((max, t) => (t.dueDate > max ? t.dueDate : max), project.endDate ?? tasks[0].dueDate)
@@ -44,7 +47,7 @@ export function ProjectTimeline({ project }: { project: ProjectDetail }) {
         <span>{formatDate(lastDue)}</span>
       </div>
       <div className="relative space-y-2">
-        <div className="pointer-events-none absolute inset-y-0 z-10 w-px bg-red-500/70" style={{ left: `calc(12rem + (100% - 12rem) * ${today / 100})` }} title="Today" />
+        <div className="pointer-events-none absolute inset-y-0 z-10 w-px bg-red-500/70" style={{ left: `calc(12rem + (100% - 12rem) * ${today / 100})` }} title={t('projects.timeline.today')} />
         {tasks.map((task) => {
           const from = pct(parseISO(task.createdAt.slice(0, 10)))
           const to = pct(parseISO(task.dueDate))
@@ -57,7 +60,7 @@ export function ProjectTimeline({ project }: { project: ProjectDetail }) {
                 <div
                   className={cn('absolute inset-y-1 rounded-sm', STATUS_BAR[task.status], task.isOverdue && 'ring-2 ring-red-500/60')}
                   style={{ left: `${Math.min(from, to)}%`, width: `${Math.max(Math.abs(to - from), 1.5)}%` }}
-                  title={`${task.status} · due ${formatDate(task.dueDate)}`}
+                  title={t('projects.timeline.barTitle', { status: enumLabel('TaskStatus', task.status), date: formatDate(task.dueDate) })}
                 />
               </div>
             </div>
@@ -68,11 +71,11 @@ export function ProjectTimeline({ project }: { project: ProjectDetail }) {
         {Object.entries(STATUS_BAR).map(([status, color]) => (
           <span key={status} className="flex items-center gap-1.5">
             <span className={cn('size-2.5 rounded-sm', color)} />
-            {status === 'InProgress' ? 'In progress' : status}
+            {enumLabel('TaskStatus', status)}
           </span>
         ))}
         <span className="flex items-center gap-1.5">
-          <span className="h-3 w-px bg-red-500" /> Today
+          <span className="h-3 w-px bg-red-500" /> {t('projects.timeline.today')}
         </span>
       </div>
     </div>

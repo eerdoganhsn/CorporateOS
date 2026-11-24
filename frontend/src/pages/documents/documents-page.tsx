@@ -1,6 +1,7 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Download, FileText, FileUp, Paperclip, Pencil, Trash2, Upload, X } from 'lucide-react'
 import { useRef, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 import { getErrorMessage, getFieldErrors } from '@/api/client'
 import { documentsApi, settingsApi, type DocumentMetadata } from '@/api/endpoints'
@@ -20,9 +21,11 @@ import { useTableState } from '@/hooks/use-table-state'
 import { usePermissions } from '@/store/auth-store'
 import { DOCUMENT_ACCESS_LEVELS, DOCUMENT_CATEGORIES, type DocumentAccessLevel, type DocumentCategory } from '@/types/enums'
 import type { DocumentItem } from '@/types/models'
-import { formatDate, formatFileSize, humanize } from '@/utils/format'
+import { enumLabel } from '@/i18n/enum-label'
+import { formatDate, formatFileSize } from '@/utils/format'
 
 export default function DocumentsPage() {
+  const { t } = useTranslation()
   const { isAdmin } = usePermissions()
   const departments = useDepartmentLookup()
   const table = useTableState(['category', 'departmentId', 'accessLevel'] as const, { sortBy: 'createdAt', sortDirection: 'desc' })
@@ -42,12 +45,12 @@ export default function DocumentsPage() {
   const { data, isLoading, error, refetch } = useQuery({ queryKey: ['documents', 'list', query], queryFn: () => documentsApi.list(query), placeholderData: (p) => p })
 
   const download = useApiMutation({ mutationFn: (doc: DocumentItem) => documentsApi.download(doc) })
-  const remove = useApiMutation({ mutationFn: (id: number) => documentsApi.remove(id), invalidate: [['documents']], successMessage: 'Document deleted.' })
+  const remove = useApiMutation({ mutationFn: (id: number) => documentsApi.remove(id), invalidate: [['documents']], successMessage: t('content.documents.deleted') })
 
   const columns: Column<DocumentItem>[] = [
     {
       key: 'name',
-      header: 'Document',
+      header: t('content.documents.columns.document'),
       sortKey: 'name',
       cell: (d) => (
         <div className="flex min-w-0 items-center gap-3">
@@ -59,21 +62,26 @@ export default function DocumentsPage() {
         </div>
       ),
     },
-    { key: 'category', header: 'Category', sortKey: 'category', cell: (d) => <Badge variant="outline">{d.category}</Badge> },
+    {
+      key: 'category',
+      header: t('content.documents.columns.category'),
+      sortKey: 'category',
+      cell: (d) => <Badge variant="outline">{enumLabel('DocumentCategory', d.category)}</Badge>,
+    },
     {
       key: 'access',
-      header: 'Access',
+      header: t('content.documents.columns.access'),
       cell: (d) => (
         <span className="text-xs">
-          {humanize(d.accessLevel)}
+          {enumLabel('DocumentAccessLevel', d.accessLevel)}
           {d.departmentName && <span className="block text-muted-foreground">{d.departmentName}</span>}
         </span>
       ),
     },
-    { key: 'size', header: 'Size', sortKey: 'fileSize', className: 'tabular-nums whitespace-nowrap', cell: (d) => formatFileSize(d.fileSize) },
+    { key: 'size', header: t('content.documents.columns.size'), sortKey: 'fileSize', className: 'tabular-nums whitespace-nowrap', cell: (d) => formatFileSize(d.fileSize) },
     {
       key: 'uploaded',
-      header: 'Uploaded',
+      header: t('content.documents.columns.uploaded'),
       sortKey: 'createdAt',
       className: 'whitespace-nowrap',
       cell: (d) => (
@@ -89,15 +97,15 @@ export default function DocumentsPage() {
       className: 'w-32 text-right',
       cell: (d) => (
         <div className="flex justify-end gap-1">
-          <Button variant="ghost" size="icon-sm" aria-label={`Download ${d.name}`} onClick={() => download.mutate(d)}>
+          <Button variant="ghost" size="icon-sm" aria-label={t('content.documents.downloadNamed', { name: d.name })} onClick={() => download.mutate(d)}>
             <Download />
           </Button>
           {isAdmin && (
             <>
-              <Button variant="ghost" size="icon-sm" aria-label={`Edit ${d.name}`} onClick={() => setEditing(d)}>
+              <Button variant="ghost" size="icon-sm" aria-label={t('content.documents.editNamed', { name: d.name })} onClick={() => setEditing(d)}>
                 <Pencil />
               </Button>
-              <Button variant="ghost" size="icon-sm" aria-label={`Delete ${d.name}`} onClick={() => setDeleting(d)}>
+              <Button variant="ghost" size="icon-sm" aria-label={t('content.documents.deleteNamed', { name: d.name })} onClick={() => setDeleting(d)}>
                 <Trash2 />
               </Button>
             </>
@@ -110,28 +118,42 @@ export default function DocumentsPage() {
   return (
     <>
       <PageHeader
-        title="Documents"
-        description="Policies, procedures and files shared with you."
+        title={t('content.documents.title')}
+        description={t('content.documents.description')}
         actions={
           isAdmin && (
             <Button onClick={() => setUploadOpen(true)}>
               <Upload />
-              Upload Document
+              {t('content.documents.upload')}
             </Button>
           )
         }
       />
       <Card>
         <FilterBar onReset={table.reset} showReset={table.hasActiveFilters}>
-          <SearchInput value={table.search} onChange={table.setSearch} placeholder="Search documents…" />
-          <FilterSelect label="All categories" value={table.filters.category} onChange={(v) => table.setFilter('category', v)} options={DOCUMENT_CATEGORIES} />
+          <SearchInput value={table.search} onChange={table.setSearch} placeholder={t('content.documents.search')} />
           <FilterSelect
-            label="All departments"
+            label={t('content.documents.allCategories')}
+            value={table.filters.category}
+            onChange={(v) => table.setFilter('category', v)}
+            options={DOCUMENT_CATEGORIES}
+            enumType="DocumentCategory"
+          />
+          <FilterSelect
+            label={t('content.documents.allDepartments')}
             value={table.filters.departmentId}
             onChange={(v) => table.setFilter('departmentId', v)}
             options={(departments.data ?? []).map((d) => ({ value: d.id, label: d.name }))}
           />
-          {isAdmin && <FilterSelect label="All access levels" value={table.filters.accessLevel} onChange={(v) => table.setFilter('accessLevel', v)} options={DOCUMENT_ACCESS_LEVELS} />}
+          {isAdmin && (
+            <FilterSelect
+              label={t('content.documents.allAccessLevels')}
+              value={table.filters.accessLevel}
+              onChange={(v) => table.setFilter('accessLevel', v)}
+              options={DOCUMENT_ACCESS_LEVELS}
+              enumType="DocumentAccessLevel"
+            />
+          )}
         </FilterBar>
         <DataTable
           columns={columns}
@@ -144,7 +166,7 @@ export default function DocumentsPage() {
           onSortChange={table.setSort}
           onPageChange={table.setPage}
           onPageSizeChange={table.setPageSize}
-          empty={<EmptyState icon={FileText} title="No documents found" description="Documents you have access to appear here." />}
+          empty={<EmptyState icon={FileText} title={t('content.documents.none')} description={t('content.documents.noneHint')} />}
         />
       </Card>
 
@@ -162,9 +184,9 @@ export default function DocumentsPage() {
       <ConfirmDialog
         open={!!deleting}
         onOpenChange={(open) => !open && setDeleting(null)}
-        title={`Delete "${deleting?.name}"?`}
-        description="The document is removed for all users. The stored file is retained for audit purposes."
-        confirmLabel="Delete"
+        title={t('content.documents.confirmDeleteTitle', { name: deleting?.name })}
+        description={t('content.documents.confirmDeleteBody')}
+        confirmLabel={t('common.actions.delete')}
         destructive
         onConfirm={() => remove.mutateAsync(deleting!.id)}
       />
@@ -173,6 +195,7 @@ export default function DocumentsPage() {
 }
 
 function DocumentDialog({ document, onClose }: { document: DocumentItem | null; onClose: () => void }) {
+  const { t } = useTranslation()
   const queryClient = useQueryClient()
   const departments = useDepartmentLookup()
   const settings = useQuery({ queryKey: ['settings', 'public'], queryFn: settingsApi.public, staleTime: 10 * 60 * 1000 })
@@ -192,8 +215,8 @@ function DocumentDialog({ document, onClose }: { document: DocumentItem | null; 
   const pick = (f: File | undefined) => {
     if (!f) return
     const ext = '.' + (f.name.split('.').pop() ?? '').toLowerCase()
-    if (allowed.length && !allowed.includes(ext)) return setErrors({ file: `Allowed types: ${allowed.join(', ')}` })
-    if (f.size > maxMb * 1024 * 1024) return setErrors({ file: `The file exceeds the ${maxMb} MB limit.` })
+    if (allowed.length && !allowed.includes(ext)) return setErrors({ file: t('content.documents.dialog.allowedTypes', { types: allowed.join(', ') }) })
+    if (f.size > maxMb * 1024 * 1024) return setErrors({ file: t('content.documents.dialog.tooLarge', { max: maxMb }) })
     setErrors({})
     setFile(f)
     if (!meta.name) setMeta((m) => ({ ...m, name: f.name.replace(/\.[^.]+$/, '') }))
@@ -201,9 +224,9 @@ function DocumentDialog({ document, onClose }: { document: DocumentItem | null; 
 
   const save = async () => {
     const next: Record<string, string> = {}
-    if (!document && !file) next.file = 'Choose a file to upload.'
-    if (!meta.name.trim()) next.name = 'Name is required.'
-    if (meta.accessLevel === 'DepartmentOnly' && !meta.departmentId) next.departmentId = 'Select a department.'
+    if (!document && !file) next.file = t('content.documents.dialog.fileRequired')
+    if (!meta.name.trim()) next.name = t('content.documents.dialog.nameRequired')
+    if (meta.accessLevel === 'DepartmentOnly' && !meta.departmentId) next.departmentId = t('content.documents.dialog.departmentRequired')
     setErrors(next)
     if (Object.keys(next).length) return
 
@@ -212,7 +235,7 @@ function DocumentDialog({ document, onClose }: { document: DocumentItem | null; 
       if (document) await documentsApi.update(document.id, meta)
       else await documentsApi.upload(file!, meta)
       await queryClient.invalidateQueries({ queryKey: ['documents'] })
-      toast.success(document ? 'Document updated.' : 'Document uploaded.')
+      toast.success(document ? t('content.documents.dialog.updated') : t('content.documents.dialog.uploaded'))
       onClose()
     } catch (error) {
       const fieldErrors = getFieldErrors(error)
@@ -232,8 +255,8 @@ function DocumentDialog({ document, onClose }: { document: DocumentItem | null; 
     <Dialog open onOpenChange={(next) => !next && !saving && onClose()}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>{document ? 'Edit document' : 'Upload document'}</DialogTitle>
-          <DialogDescription>Files are validated by type, size and content before they are stored.</DialogDescription>
+          <DialogTitle>{document ? t('content.documents.dialog.edit') : t('content.documents.dialog.upload')}</DialogTitle>
+          <DialogDescription>{t('content.documents.dialog.description')}</DialogDescription>
         </DialogHeader>
         <div className="grid gap-4">
           {!document && (
@@ -251,7 +274,7 @@ function DocumentDialog({ document, onClose }: { document: DocumentItem | null; 
                     <Paperclip className="size-4 text-muted-foreground" />
                     <span className="font-medium">{file.name}</span>
                     <span className="text-muted-foreground">({formatFileSize(file.size)})</span>
-                    <Button type="button" variant="ghost" size="icon-sm" aria-label="Remove file" onClick={() => setFile(null)}>
+                    <Button type="button" variant="ghost" size="icon-sm" aria-label={t('content.documents.dialog.removeFile')} onClick={() => setFile(null)}>
                       <X />
                     </Button>
                   </div>
@@ -259,10 +282,10 @@ function DocumentDialog({ document, onClose }: { document: DocumentItem | null; 
                   <>
                     <FileUp className="size-6 text-muted-foreground" />
                     <Button type="button" variant="outline" size="sm" onClick={() => fileInput.current?.click()}>
-                      Choose file
+                      {t('content.documents.dialog.chooseFile')}
                     </Button>
                     <p className="text-xs text-muted-foreground">
-                      {allowed.join(', ')} · max {maxMb} MB
+                      {t('content.documents.dialog.limits', { types: allowed.join(', '), max: maxMb })}
                     </p>
                   </>
                 )}
@@ -271,39 +294,45 @@ function DocumentDialog({ document, onClose }: { document: DocumentItem | null; 
               {errors.file && <p className="text-xs text-destructive" role="alert">{errors.file}</p>}
             </div>
           )}
-          <FormField label="Name" htmlFor="docName" error={errors.name} required>
+          <FormField label={t('content.documents.dialog.name')} htmlFor="docName" error={errors.name} required>
             <Input id="docName" value={meta.name} maxLength={200} onChange={(e) => setMeta({ ...meta, name: e.target.value })} />
           </FormField>
-          <FormField label="Description" htmlFor="docDescription">
+          <FormField label={t('content.documents.dialog.descriptionField')} htmlFor="docDescription">
             <Textarea id="docDescription" rows={2} maxLength={1000} value={meta.description ?? ''} onChange={(e) => setMeta({ ...meta, description: e.target.value })} />
           </FormField>
           <div className="grid gap-4 sm:grid-cols-2">
-            <FormField label="Category" htmlFor="docCategory">
+            <FormField label={t('content.documents.dialog.category')} htmlFor="docCategory">
               <NativeSelect id="docCategory" value={meta.category} onChange={(e) => setMeta({ ...meta, category: e.target.value as DocumentCategory })}>
                 {DOCUMENT_CATEGORIES.map((c) => (
                   <option key={c} value={c}>
-                    {c}
+                    {enumLabel('DocumentCategory', c)}
                   </option>
                 ))}
               </NativeSelect>
             </FormField>
-            <FormField label="Who can access" htmlFor="docAccess">
+            <FormField label={t('content.documents.dialog.access')} htmlFor="docAccess">
               <NativeSelect id="docAccess" value={meta.accessLevel} onChange={(e) => setMeta({ ...meta, accessLevel: e.target.value as DocumentAccessLevel })}>
                 {DOCUMENT_ACCESS_LEVELS.map((a) => (
                   <option key={a} value={a}>
-                    {humanize(a)}
+                    {enumLabel('DocumentAccessLevel', a)}
                   </option>
                 ))}
               </NativeSelect>
             </FormField>
           </div>
-          <FormField label="Department" htmlFor="docDepartment" error={errors.departmentId} required={meta.accessLevel === 'DepartmentOnly'} hint="Required for department-only access.">
+          <FormField
+            label={t('content.documents.dialog.department')}
+            htmlFor="docDepartment"
+            error={errors.departmentId}
+            required={meta.accessLevel === 'DepartmentOnly'}
+            hint={t('content.documents.dialog.departmentHint')}
+          >
             <NativeSelect
               id="docDepartment"
               value={meta.departmentId ?? ''}
               onChange={(e) => setMeta({ ...meta, departmentId: e.target.value ? Number(e.target.value) : null })}
             >
-              <option value="">None</option>
+              <option value="">{t('content.documents.dialog.none')}</option>
               {departments.data?.map((d) => (
                 <option key={d.id} value={d.id}>
                   {d.name}
@@ -314,11 +343,11 @@ function DocumentDialog({ document, onClose }: { document: DocumentItem | null; 
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={onClose} disabled={saving}>
-            Cancel
+            {t('common.actions.cancel')}
           </Button>
           <Button onClick={save} disabled={saving}>
             {saving && <Spinner />}
-            {document ? 'Save changes' : 'Upload'}
+            {document ? t('common.actions.saveChanges') : t('content.documents.dialog.submit')}
           </Button>
         </DialogFooter>
       </DialogContent>

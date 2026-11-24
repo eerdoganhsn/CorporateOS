@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
 import { FolderKanban } from 'lucide-react'
 import { useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { Link } from 'react-router'
 import { employeesApi, expensesApi, leaveApi } from '@/api/endpoints'
 import { ActivityTimeline } from '@/components/common/activity-timeline'
@@ -13,6 +14,7 @@ import { leaveColumns } from '@/features/leave/leave-columns'
 import { formatDate } from '@/utils/format'
 
 export function EmployeeProjects({ employeeId }: { employeeId: number }) {
+  const { t } = useTranslation()
   const { data, isLoading, error, refetch } = useQuery({
     queryKey: ['employees', employeeId, 'projects'],
     queryFn: () => employeesApi.projects(employeeId),
@@ -20,7 +22,7 @@ export function EmployeeProjects({ employeeId }: { employeeId: number }) {
 
   if (isLoading) return <TableSkeleton rows={3} />
   if (error) return <ErrorState error={error} onRetry={refetch} />
-  if (!data?.length) return <EmptyState icon={FolderKanban} title="Not assigned to any project" />
+  if (!data?.length) return <EmptyState icon={FolderKanban} title={t('employees.related.noProjects')} />
 
   return (
     <ul className="divide-y">
@@ -31,12 +33,12 @@ export function EmployeeProjects({ employeeId }: { employeeId: number }) {
               {p.projectName}
             </Link>
             <p className="text-xs text-muted-foreground">
-              {p.projectCode} · {p.role} · joined {formatDate(p.joinedAt)}
+              {t('employees.related.projectLine', { code: p.projectCode, role: p.role, date: formatDate(p.joinedAt) })}
             </p>
           </div>
           <div className="flex items-center gap-2">
-            {p.isProjectManager && <Badge variant="secondary">Project manager</Badge>}
-            <StatusBadge status={p.status} />
+            {p.isProjectManager && <Badge variant="secondary">{t('employees.related.projectManager')}</Badge>}
+            <StatusBadge status={p.status} type="ProjectStatus" />
           </div>
         </li>
       ))}
@@ -45,6 +47,7 @@ export function EmployeeProjects({ employeeId }: { employeeId: number }) {
 }
 
 export function EmployeeLeave({ employeeId }: { employeeId: number }) {
+  const { t } = useTranslation()
   const [page, setPage] = useState(1)
   const [sort, setSort] = useState<SortState>({ sortBy: 'startDate', sortDirection: 'desc' })
   const query = { scope: 'All' as const, employeeId, page, pageSize: 10, ...sort }
@@ -61,12 +64,13 @@ export function EmployeeLeave({ employeeId }: { employeeId: number }) {
       sort={sort}
       onSortChange={setSort}
       onPageChange={setPage}
-      empty={<EmptyState title="No leave requests" />}
+      empty={<EmptyState title={t('employees.related.noLeave')} />}
     />
   )
 }
 
 export function EmployeeExpenses({ employeeId }: { employeeId: number }) {
+  const { t } = useTranslation()
   const [page, setPage] = useState(1)
   const [sort, setSort] = useState<SortState>({ sortBy: 'expenseDate', sortDirection: 'desc' })
   const query = { scope: 'All' as const, employeeId, page, pageSize: 10, ...sort }
@@ -83,7 +87,7 @@ export function EmployeeExpenses({ employeeId }: { employeeId: number }) {
       sort={sort}
       onSortChange={setSort}
       onPageChange={setPage}
-      empty={<EmptyState title="No expenses" />}
+      empty={<EmptyState title={t('employees.related.noExpenses')} />}
     />
   )
 }

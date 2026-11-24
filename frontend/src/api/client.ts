@@ -1,4 +1,5 @@
 import axios, { type AxiosError, type AxiosRequestConfig, type InternalAxiosRequestConfig } from 'axios'
+import i18n, { currentLanguage } from '@/i18n'
 import { useAuthStore } from '@/store/auth-store'
 import type { ApiResponse } from '@/types/api'
 import type { AuthResponse } from '@/types/models'
@@ -17,6 +18,8 @@ api.interceptors.request.use((config) => {
   if (token) {
     config.headers.Authorization = `Bearer ${token}`
   }
+  // Server messages (errors, validation, report labels) come back in the UI language.
+  config.headers['Accept-Language'] = currentLanguage()
   return config
 })
 
@@ -34,6 +37,7 @@ async function performRefresh(): Promise<AuthResponse | null> {
   try {
     const response = await axios.post<ApiResponse<AuthResponse>>(`${API_URL}/auth/refresh`, null, {
       withCredentials: true,
+      headers: { 'Accept-Language': currentLanguage() },
     })
     useAuthStore.getState().setSession(response.data.data)
     return response.data.data
@@ -149,17 +153,18 @@ export function mediaUrl(path: string | null | undefined): string | undefined {
 
 /* ------------------------------ Error handling ----------------------------- */
 
-export function getErrorMessage(error: unknown, fallback = 'Something went wrong. Please try again.'): string {
+export function getErrorMessage(error: unknown, fallback?: string): string {
   if (axios.isAxiosError(error)) {
-    if (!error.response) return 'Cannot reach the server. Check your connection and try again.'
+    if (!error.response) return i18n.t('common.errors.network')
     const body = error.response.data as Partial<ApiResponse<unknown>> | undefined
+    // A validation failure is more useful as its first field message than as the generic summary.
     const firstFieldError = body?.errors ? Object.values(body.errors).flat()[0] : undefined
-    if (body?.message === 'Validation failed' && firstFieldError) return firstFieldError
+    if (error.response.status === 400 && firstFieldError) return firstFieldError
     if (body?.message) return body.message
-    if (error.response.status === 403) return 'You do not have permission to perform this action.'
-    if (error.response.status === 404) return 'The requested record was not found.'
+    if (error.response.status === 403) return i18n.t('common.errors.forbidden')
+    if (error.response.status === 404) return i18n.t('common.errors.notFound')
   }
-  return fallback
+  return fallback ?? i18n.t('common.errors.generic')
 }
 
 export function getFieldErrors(error: unknown): Record<string, string[]> {

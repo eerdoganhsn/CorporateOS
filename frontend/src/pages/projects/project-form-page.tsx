@@ -1,6 +1,7 @@
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useForm } from 'react-hook-form'
+import { useTranslation } from 'react-i18next'
 import { Link, useNavigate, useParams } from 'react-router'
 import { toast } from 'sonner'
 import { z } from 'zod'
@@ -15,28 +16,33 @@ import { useDepartmentLookup, useEmployeeLookup } from '@/hooks/use-lookups'
 import { usePermissions } from '@/store/auth-store'
 import { PRIORITIES, PROJECT_STATUSES } from '@/types/enums'
 import type { ProjectDetail } from '@/types/models'
-import { humanize } from '@/utils/format'
+import { enumLabel } from '@/i18n/enum-label'
 import { optionalAmount, toNullable, toOptionalNumber } from '@/utils/form'
 import { applyServerErrors } from '@/utils/server-errors'
 
 const schema = z
   .object({
-    name: z.string().trim().min(1, 'Name is required.').max(200),
-    projectCode: z.string().trim().min(1, 'Project code is required.').max(20).regex(/^[A-Za-z0-9-]+$/, 'Use letters, digits and hyphens only.'),
+    name: z.string().trim().min(1, 'projects.validation.nameRequired').max(200),
+    projectCode: z.string().trim().min(1, 'projects.validation.codeRequired').max(20).regex(/^[A-Za-z0-9-]+$/, 'projects.validation.codeFormat'),
     description: z.string().max(4000),
-    startDate: z.string().min(1, 'Start date is required.'),
+    startDate: z.string().min(1, 'projects.validation.startRequired'),
     endDate: z.string(),
     status: z.enum(PROJECT_STATUSES),
     priority: z.enum(PRIORITIES),
-    budget: optionalAmount('Enter a valid budget.'),
-    progressPercentage: z.number({ message: 'Enter a number between 0 and 100.' }).int().min(0, 'Progress must be 0–100.').max(100, 'Progress must be 0–100.'),
+    budget: optionalAmount('projects.validation.budgetInvalid'),
+    progressPercentage: z
+      .number({ message: 'projects.validation.progressNumber' })
+      .int()
+      .min(0, 'projects.validation.progressRange')
+      .max(100, 'projects.validation.progressRange'),
     projectManagerId: z.string(),
     departmentId: z.string(),
   })
-  .refine((v) => !v.endDate || v.endDate >= v.startDate, { path: ['endDate'], message: 'End date cannot be earlier than start date.' })
+  .refine((v) => !v.endDate || v.endDate >= v.startDate, { path: ['endDate'], message: 'common.validation.endBeforeStart' })
 type FormValues = z.infer<typeof schema>
 
 export default function ProjectFormPage() {
+  const { t } = useTranslation()
   const { id } = useParams()
   const projectId = id ? Number(id) : undefined
   const { data: project, isLoading, error, refetch } = useQuery({
@@ -51,9 +57,9 @@ export default function ProjectFormPage() {
   return (
     <>
       <PageHeader
-        title={project ? `Edit ${project.name}` : 'New project'}
-        description={project ? 'Update scope, schedule and ownership.' : 'Define the project, its owner and schedule.'}
-        back={project ? { to: `/projects/${project.id}`, label: project.name } : { to: '/projects', label: 'Projects' }}
+        title={project ? t('projects.formPage.edit', { name: project.name }) : t('projects.formPage.create')}
+        description={project ? t('projects.formPage.editDescription') : t('projects.formPage.createDescription')}
+        back={project ? { to: `/projects/${project.id}`, label: project.name } : { to: '/projects', label: t('projects.list.title') }}
       />
       <ProjectForm project={project} />
     </>
@@ -61,6 +67,7 @@ export default function ProjectFormPage() {
 }
 
 function ProjectForm({ project }: { project?: ProjectDetail }) {
+  const { t } = useTranslation()
   const navigate = useNavigate()
   const queryClient = useQueryClient()
   const { isAdmin } = usePermissions()
@@ -102,7 +109,7 @@ function ProjectForm({ project }: { project?: ProjectDetail }) {
       const saved = project ? await projectsApi.update(project.id, payload) : await projectsApi.create(payload)
       await queryClient.invalidateQueries({ queryKey: ['projects'] })
       await queryClient.invalidateQueries({ queryKey: ['lookups', 'projects'] })
-      toast.success(project ? 'Project updated.' : 'Project created.')
+      toast.success(project ? t('projects.formPage.updated') : t('projects.formPage.created'))
       navigate(`/projects/${saved.id}`)
     } catch (error) {
       applyServerErrors(error, setError, Object.keys(schema.shape))
@@ -115,55 +122,55 @@ function ProjectForm({ project }: { project?: ProjectDetail }) {
     <form onSubmit={handleSubmit(submit)} noValidate>
       <Card>
         <CardContent>
-          <FormSection title="Overview" description="What the project delivers.">
-            <FormField label="Project name" htmlFor="name" error={err('name')} required className="sm:col-span-2">
+          <FormSection title={t('projects.form.overview')} description={t('projects.form.overviewHint')}>
+            <FormField label={t('projects.form.name')} htmlFor="name" error={err('name')} required className="sm:col-span-2">
               <Input id="name" aria-invalid={!!err('name')} {...register('name')} />
             </FormField>
-            <FormField label="Project code" htmlFor="projectCode" error={err('projectCode')} required>
-              <Input id="projectCode" className="uppercase" placeholder="e.g. CPM-2026" aria-invalid={!!err('projectCode')} {...register('projectCode')} />
+            <FormField label={t('projects.form.code')} htmlFor="projectCode" error={err('projectCode')} required>
+              <Input id="projectCode" className="uppercase" placeholder={t('projects.form.codePlaceholder')} aria-invalid={!!err('projectCode')} {...register('projectCode')} />
             </FormField>
-            <FormField label="Priority" htmlFor="priority">
+            <FormField label={t('projects.form.priority')} htmlFor="priority">
               <NativeSelect id="priority" {...register('priority')}>
                 {PRIORITIES.map((p) => (
                   <option key={p} value={p}>
-                    {p}
+                    {enumLabel('Priority', p)}
                   </option>
                 ))}
               </NativeSelect>
             </FormField>
-            <FormField label="Description" htmlFor="description" className="sm:col-span-2">
+            <FormField label={t('projects.form.description')} htmlFor="description" className="sm:col-span-2">
               <Textarea id="description" rows={4} {...register('description')} />
             </FormField>
           </FormSection>
 
-          <FormSection title="Schedule & status">
-            <FormField label="Start date" htmlFor="startDate" error={err('startDate')} required>
+          <FormSection title={t('projects.form.schedule')}>
+            <FormField label={t('projects.form.startDate')} htmlFor="startDate" error={err('startDate')} required>
               <Input id="startDate" type="date" {...register('startDate')} />
             </FormField>
-            <FormField label="End date" htmlFor="endDate" error={err('endDate')}>
+            <FormField label={t('projects.form.endDate')} htmlFor="endDate" error={err('endDate')}>
               <Input id="endDate" type="date" aria-invalid={!!err('endDate')} {...register('endDate')} />
             </FormField>
-            <FormField label="Status" htmlFor="status">
+            <FormField label={t('projects.form.status')} htmlFor="status">
               <NativeSelect id="status" {...register('status')}>
                 {PROJECT_STATUSES.map((s) => (
                   <option key={s} value={s}>
-                    {humanize(s)}
+                    {enumLabel('ProjectStatus', s)}
                   </option>
                 ))}
               </NativeSelect>
             </FormField>
-            <FormField label="Progress (%)" htmlFor="progressPercentage" error={err('progressPercentage')}>
+            <FormField label={t('projects.form.progress')} htmlFor="progressPercentage" error={err('progressPercentage')}>
               <Input id="progressPercentage" type="number" min={0} max={100} {...register('progressPercentage', { valueAsNumber: true })} />
             </FormField>
           </FormSection>
 
           <FormSection
-            title="Ownership & budget"
-            description={isAdmin ? undefined : 'Only administrators can change the owner, department and budget.'}
+            title={t('projects.form.ownership')}
+            description={isAdmin ? undefined : t('projects.form.ownershipHint')}
           >
-            <FormField label="Project manager" htmlFor="projectManagerId">
+            <FormField label={t('projects.form.manager')} htmlFor="projectManagerId">
               <NativeSelect id="projectManagerId" disabled={!isAdmin} {...register('projectManagerId')}>
-                <option value="">Unassigned</option>
+                <option value="">{t('projects.form.unassigned')}</option>
                 {employees.data?.map((e) => (
                   <option key={e.id} value={e.id}>
                     {e.name} — {e.departmentName}
@@ -171,9 +178,9 @@ function ProjectForm({ project }: { project?: ProjectDetail }) {
                 ))}
               </NativeSelect>
             </FormField>
-            <FormField label="Department" htmlFor="departmentId">
+            <FormField label={t('projects.form.department')} htmlFor="departmentId">
               <NativeSelect id="departmentId" disabled={!isAdmin} {...register('departmentId')}>
-                <option value="">Cross-department</option>
+                <option value="">{t('projects.form.crossDepartment')}</option>
                 {departments.data?.map((d) => (
                   <option key={d.id} value={d.id}>
                     {d.name}
@@ -181,18 +188,18 @@ function ProjectForm({ project }: { project?: ProjectDetail }) {
                 ))}
               </NativeSelect>
             </FormField>
-            <FormField label="Budget (USD)" htmlFor="budget" error={err('budget')}>
+            <FormField label={t('projects.form.budget')} htmlFor="budget" error={err('budget')}>
               <Input id="budget" inputMode="decimal" disabled={!isAdmin} {...register('budget')} />
             </FormField>
           </FormSection>
         </CardContent>
         <CardFooter className="justify-end gap-2">
           <Button variant="outline" asChild>
-            <Link to={project ? `/projects/${project.id}` : '/projects'}>Cancel</Link>
+            <Link to={project ? `/projects/${project.id}` : '/projects'}>{t('common.actions.cancel')}</Link>
           </Button>
           <Button type="submit" disabled={isSubmitting}>
             {isSubmitting && <Spinner />}
-            {project ? 'Save changes' : 'Create project'}
+            {project ? t('common.actions.saveChanges') : t('projects.form.create')}
           </Button>
         </CardFooter>
       </Card>

@@ -1,6 +1,7 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Pencil, Send, Trash2 } from 'lucide-react'
 import { useState, type FormEvent } from 'react'
+import { useTranslation } from 'react-i18next'
 import { Link, useNavigate, useParams } from 'react-router'
 import { toast } from 'sonner'
 import { getErrorMessage } from '@/api/client'
@@ -21,9 +22,11 @@ import { useApiMutation } from '@/hooks/use-api-mutation'
 import { usePermissions } from '@/store/auth-store'
 import { TASK_STATUSES, type TaskStatus } from '@/types/enums'
 import type { TaskDetail } from '@/types/models'
-import { formatDate, formatDateTime, formatRelative, humanize } from '@/utils/format'
+import { enumLabel } from '@/i18n/enum-label'
+import { formatDate, formatDateTime, formatNumber, formatPercent, formatRelative } from '@/utils/format'
 
 export default function TaskDetailPage() {
+  const { t } = useTranslation()
   const id = Number(useParams().id)
   const navigate = useNavigate()
   const [editOpen, setEditOpen] = useState(false)
@@ -33,7 +36,7 @@ export default function TaskDetailPage() {
   const remove = useApiMutation({
     mutationFn: () => tasksApi.remove(id),
     invalidate: [['tasks'], ['projects'], ['dashboard']],
-    successMessage: 'Task deleted.',
+    successMessage: t('tasks.detail.deleted'),
     onSuccess: () => navigate('/tasks', { replace: true }),
   })
 
@@ -43,7 +46,7 @@ export default function TaskDetailPage() {
   return (
     <>
       <PageHeader
-        back={{ to: '/tasks', label: 'Tasks' }}
+        back={{ to: '/tasks', label: t('tasks.list.title') }}
         title={task.title}
         description={
           <Link to={`/projects/${task.projectId}`} className="hover:underline">
@@ -55,9 +58,9 @@ export default function TaskDetailPage() {
             <>
               <Button variant="outline" onClick={() => setEditOpen(true)}>
                 <Pencil />
-                Edit
+                {t('common.actions.edit')}
               </Button>
-              <Button variant="outline" size="icon" aria-label="Delete task" onClick={() => setDeleteOpen(true)}>
+              <Button variant="outline" size="icon" aria-label={t('tasks.detail.deleteTask')} onClick={() => setDeleteOpen(true)}>
                 <Trash2 />
               </Button>
             </>
@@ -70,15 +73,15 @@ export default function TaskDetailPage() {
           <Card>
             <CardContent className="space-y-5">
               <div className="flex flex-wrap items-center gap-2">
-                <StatusBadge status={task.status} />
+                <StatusBadge status={task.status} type="TaskStatus" />
                 <PriorityBadge priority={task.priority} />
-                {task.isOverdue && <Badge variant="danger">Overdue</Badge>}
+                {task.isOverdue && <Badge variant="danger">{t('tasks.detail.overdue')}</Badge>}
               </div>
-              <p className="text-sm leading-relaxed whitespace-pre-line text-muted-foreground">{task.description || 'No description provided.'}</p>
+              <p className="text-sm leading-relaxed whitespace-pre-line text-muted-foreground">{task.description || t('tasks.detail.noDescription')}</p>
               <div>
                 <div className="mb-1.5 flex justify-between text-xs text-muted-foreground">
-                  <span>Progress</span>
-                  <span className="tabular-nums">{task.progressPercentage}%</span>
+                  <span>{t('tasks.detail.progress')}</span>
+                  <span className="tabular-nums">{formatPercent(task.progressPercentage)}</span>
                 </div>
                 <Progress value={task.progressPercentage} />
               </div>
@@ -88,8 +91,8 @@ export default function TaskDetailPage() {
           <Card>
             <Tabs defaultValue="comments" className="gap-0">
               <TabsList className="px-3">
-                <TabsTrigger value="comments">Comments ({task.comments.length})</TabsTrigger>
-                <TabsTrigger value="activity">Activity</TabsTrigger>
+                <TabsTrigger value="comments">{t('tasks.detail.comments', { count: task.comments.length })}</TabsTrigger>
+                <TabsTrigger value="activity">{t('tasks.detail.activity')}</TabsTrigger>
               </TabsList>
               <TabsContent value="comments">
                 <TaskComments task={task} />
@@ -105,24 +108,24 @@ export default function TaskDetailPage() {
           {task.canUpdateProgress && <ProgressUpdateCard task={task} />}
           <Card>
             <CardHeader>
-              <CardTitle>Details</CardTitle>
+              <CardTitle>{t('tasks.detail.details')}</CardTitle>
             </CardHeader>
             <CardContent>
               <dl className="grid gap-4">
-                <DetailItem label="Assignee">
+                <DetailItem label={t('tasks.detail.assignee')}>
                   {task.assignedTo ? (
                     <PersonCell name={task.assignedTo.fullName} subtitle={task.assignedTo.positionTitle} src={task.assignedTo.avatarUrl} />
                   ) : (
-                    'Unassigned'
+                    t('common.unassigned')
                   )}
                 </DetailItem>
-                <DetailItem label="Assigned by">{task.assignedByName}</DetailItem>
-                <DetailItem label="Due date">{formatDate(task.dueDate, 'No due date')}</DetailItem>
-                <DetailItem label="Estimated / actual hours">
-                  {task.estimatedHours ?? '—'} h / {task.actualHours ?? '—'} h
+                <DetailItem label={t('tasks.detail.assignedBy')}>{task.assignedByName}</DetailItem>
+                <DetailItem label={t('tasks.detail.dueDate')}>{formatDate(task.dueDate, t('tasks.detail.noDueDate'))}</DetailItem>
+                <DetailItem label={t('tasks.detail.hours')}>
+                  {t('tasks.detail.hoursValue', { estimated: formatNumber(task.estimatedHours), actual: formatNumber(task.actualHours) })}
                 </DetailItem>
-                {task.completedAt && <DetailItem label="Completed">{formatDateTime(task.completedAt)}</DetailItem>}
-                <DetailItem label="Created">{formatDateTime(task.createdAt)}</DetailItem>
+                {task.completedAt && <DetailItem label={t('tasks.detail.completed')}>{formatDateTime(task.completedAt)}</DetailItem>}
+                <DetailItem label={t('tasks.detail.created')}>{formatDateTime(task.createdAt)}</DetailItem>
               </dl>
             </CardContent>
           </Card>
@@ -133,9 +136,9 @@ export default function TaskDetailPage() {
       <ConfirmDialog
         open={deleteOpen}
         onOpenChange={setDeleteOpen}
-        title="Delete this task?"
-        description="The task is archived and removed from boards and lists. Its audit history is kept."
-        confirmLabel="Delete task"
+        title={t('tasks.detail.confirmDeleteTitle')}
+        description={t('tasks.detail.confirmDeleteBody')}
+        confirmLabel={t('tasks.detail.deleteTask')}
         destructive
         onConfirm={() => remove.mutateAsync()}
       />
@@ -144,6 +147,7 @@ export default function TaskDetailPage() {
 }
 
 function ProgressUpdateCard({ task }: { task: TaskDetail }) {
+  const { t } = useTranslation()
   const queryClient = useQueryClient()
   const { isManagerOrAbove } = usePermissions()
   const [status, setStatus] = useState<TaskStatus>(task.status)
@@ -163,7 +167,7 @@ function ProgressUpdateCard({ task }: { task: TaskDetail }) {
       await tasksApi.updateStatus(task.id, { status, progressPercentage: progressNumber, actualHours: hours === '' ? null : Number(hours) })
       await queryClient.invalidateQueries({ queryKey: ['tasks'] })
       await queryClient.invalidateQueries({ queryKey: ['dashboard'] })
-      toast.success('Task updated.')
+      toast.success(t('tasks.progress.saved'))
     } catch (err) {
       toast.error(getErrorMessage(err))
     } finally {
@@ -174,34 +178,34 @@ function ProgressUpdateCard({ task }: { task: TaskDetail }) {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Update progress</CardTitle>
+        <CardTitle>{t('tasks.progress.title')}</CardTitle>
       </CardHeader>
       <CardContent>
         <form onSubmit={save} className="grid gap-3">
           <div className="space-y-1.5">
-            <Label htmlFor="status">Status</Label>
+            <Label htmlFor="status">{t('tasks.progress.status')}</Label>
             <NativeSelect id="status" value={status} onChange={(e) => setStatus(e.target.value as TaskStatus)}>
               {statuses.map((s) => (
                 <option key={s} value={s}>
-                  {humanize(s)}
+                  {enumLabel('TaskStatus', s)}
                 </option>
               ))}
             </NativeSelect>
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
-              <Label htmlFor="progress">Progress %</Label>
+              <Label htmlFor="progress">{t('tasks.progress.percent')}</Label>
               <Input id="progress" type="number" min={0} max={100} value={status === 'Completed' ? '100' : progress} disabled={status === 'Completed'} onChange={(e) => setProgress(e.target.value)} aria-invalid={invalid} />
             </div>
             <div className="space-y-1.5">
-              <Label htmlFor="hours">Actual hours</Label>
+              <Label htmlFor="hours">{t('tasks.progress.actualHours')}</Label>
               <Input id="hours" inputMode="decimal" value={hours} onChange={(e) => setHours(e.target.value)} />
             </div>
           </div>
-          {invalid && <p className="text-xs text-destructive">Progress must be 0–100 and hours a positive number.</p>}
+          {invalid && <p className="text-xs text-destructive">{t('tasks.progress.invalid')}</p>}
           <Button type="submit" disabled={saving || invalid}>
             {saving && <Spinner />}
-            Save update
+            {t('tasks.progress.save')}
           </Button>
         </form>
       </CardContent>
@@ -210,6 +214,7 @@ function ProgressUpdateCard({ task }: { task: TaskDetail }) {
 }
 
 function TaskComments({ task }: { task: TaskDetail }) {
+  const { t } = useTranslation()
   const queryClient = useQueryClient()
   const [content, setContent] = useState('')
   const add = useApiMutation({
@@ -223,7 +228,7 @@ function TaskComments({ task }: { task: TaskDetail }) {
   return (
     <div className="p-5">
       <ul className="space-y-5">
-        {task.comments.length === 0 && <li className="text-sm text-muted-foreground">No comments yet. Start the conversation below.</li>}
+        {task.comments.length === 0 && <li className="text-sm text-muted-foreground">{t('tasks.comments.none')}</li>}
         {task.comments.map((c) => (
           <li key={c.id} className="flex gap-3">
             <UserAvatar name={c.authorName} src={c.authorAvatarUrl} className="size-8" />
@@ -247,14 +252,14 @@ function TaskComments({ task }: { task: TaskDetail }) {
         }}
       >
         <Label htmlFor="comment" className="sr-only">
-          Add a comment
+          {t('tasks.comments.add')}
         </Label>
-        <Textarea id="comment" rows={3} maxLength={2000} placeholder="Write a comment…" value={content} onChange={(e) => setContent(e.target.value)} />
+        <Textarea id="comment" rows={3} maxLength={2000} placeholder={t('tasks.comments.placeholder')} value={content} onChange={(e) => setContent(e.target.value)} />
         <div className="flex items-center justify-between">
           <span className="text-xs text-muted-foreground">{content.length}/2000</span>
           <Button type="submit" size="sm" disabled={!content.trim() || add.isPending}>
             {add.isPending ? <Spinner /> : <Send />}
-            Comment
+            {t('tasks.comments.submit')}
           </Button>
         </div>
       </form>

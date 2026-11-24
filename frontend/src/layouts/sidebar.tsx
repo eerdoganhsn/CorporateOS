@@ -1,4 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
+import { useTranslation } from 'react-i18next'
 import { NavLink } from 'react-router'
 import { API_URL } from '@/api/client'
 import { settingsApi } from '@/api/endpoints'
@@ -7,6 +8,7 @@ import { cn } from '@/utils/cn'
 import { NAVIGATION } from './navigation'
 
 export function BrandMark({ className }: { className?: string }) {
+  const { t } = useTranslation()
   const { data } = useQuery({ queryKey: ['settings', 'public'], queryFn: settingsApi.public, staleTime: 10 * 60 * 1000 })
 
   return (
@@ -22,17 +24,18 @@ export function BrandMark({ className }: { className?: string }) {
       )}
       <div className="min-w-0 leading-tight">
         <p className="truncate text-sm font-semibold">CorporateOS</p>
-        <p className="truncate text-[11px] text-muted-foreground">{data?.companyName ?? 'Enterprise Platform'}</p>
+        <p className="truncate text-[11px] text-muted-foreground">{data?.companyName ?? t('common.shell.enterprisePlatform')}</p>
       </div>
     </div>
   )
 }
 
 export function SidebarNav({ onNavigate }: { onNavigate?: () => void }) {
+  const { t } = useTranslation()
   const { hasAny } = usePermissions()
 
   return (
-    <nav aria-label="Main navigation" className="space-y-5">
+    <nav aria-label={t('common.shell.mainNavigation')} className="space-y-5">
       {NAVIGATION.map((section, index) => {
         const items = section.items.filter((item) => !item.roles || hasAny(item.roles))
         if (items.length === 0) return null
@@ -41,7 +44,7 @@ export function SidebarNav({ onNavigate }: { onNavigate?: () => void }) {
           <div key={section.label ?? index}>
             {section.label && (
               <p className="mb-1.5 px-2.5 text-[11px] font-medium tracking-wider text-muted-foreground uppercase">
-                {section.label}
+                {t(section.label)}
               </p>
             )}
             <ul className="space-y-0.5">
@@ -60,7 +63,7 @@ export function SidebarNav({ onNavigate }: { onNavigate?: () => void }) {
                     }
                   >
                     <item.icon className="size-4 shrink-0" />
-                    {item.label}
+                    {t(item.label)}
                   </NavLink>
                 </li>
               ))}

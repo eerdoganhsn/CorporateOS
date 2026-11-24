@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
 import { CalendarDays, ClipboardCheck, Plus, XCircle } from 'lucide-react'
 import { useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { Link } from 'react-router'
 import { leaveApi } from '@/api/endpoints'
 import { ConfirmDialog } from '@/components/common/confirm-dialog'
@@ -17,9 +18,10 @@ import { useTableState } from '@/hooks/use-table-state'
 import { usePermissions } from '@/store/auth-store'
 import { LEAVE_STATUSES, LEAVE_TYPES, type LeaveStatus, type LeaveType } from '@/types/enums'
 import type { LeaveRequest } from '@/types/models'
-import { humanize } from '@/utils/format'
+import { enumLabel } from '@/i18n/enum-label'
 
 export default function MyLeavePage() {
+  const { t } = useTranslation()
   const { isManagerOrAbove } = usePermissions()
   const table = useTableState(['status', 'leaveType'] as const, { sortBy: 'startDate', sortDirection: 'desc' })
   const [cancelling, setCancelling] = useState<LeaveRequest | null>(null)
@@ -38,7 +40,7 @@ export default function MyLeavePage() {
   const cancel = useApiMutation({
     mutationFn: (id: number) => leaveApi.cancel(id),
     invalidate: [['leave'], ['dashboard']],
-    successMessage: 'Leave request cancelled.',
+    successMessage: t('leave.mine.cancelled'),
   })
 
   const columns: Column<LeaveRequest>[] = [
@@ -51,11 +53,11 @@ export default function MyLeavePage() {
         l.canCancel ? (
           <Button variant="ghost" size="sm" onClick={() => setCancelling(l)}>
             <XCircle />
-            Cancel
+            {t('leave.mine.cancel')}
           </Button>
         ) : l.rejectionReason ? (
           <span className="text-xs text-red-600" title={l.rejectionReason}>
-            See reason
+            {t('leave.mine.seeReason')}
           </span>
         ) : null,
     },
@@ -67,22 +69,22 @@ export default function MyLeavePage() {
   return (
     <>
       <PageHeader
-        title="Leave Management"
-        description="Request time off and track your balance and history."
+        title={t('leave.title')}
+        description={t('leave.mine.description')}
         actions={
           <>
             {isManagerOrAbove && (
               <Button variant="outline" asChild>
                 <Link to="/leave/approvals">
                   <ClipboardCheck />
-                  Approvals
+                  {t('leave.mine.approvals')}
                 </Link>
               </Button>
             )}
             <Button asChild>
               <Link to="/leave/new">
                 <Plus />
-                Request leave
+                {t('leave.mine.request')}
               </Link>
             </Button>
           </>
@@ -92,19 +94,19 @@ export default function MyLeavePage() {
       <div className="grid gap-4 lg:grid-cols-3">
         <Card className="lg:col-span-1">
           <CardHeader>
-            <CardTitle>Annual leave {balance?.year}</CardTitle>
+            <CardTitle>{t('leave.mine.annualLeave', { year: balance?.year ?? '' })}</CardTitle>
           </CardHeader>
           <CardContent>
             {balance ? (
               <>
                 <p className="text-3xl font-semibold tabular-nums">
                   {balance.remainingDays}
-                  <span className="text-base font-normal text-muted-foreground"> / {balance.totalDays} days left</span>
+                  <span className="text-base font-normal text-muted-foreground">{t('leave.mine.daysLeft', { total: balance.totalDays })}</span>
                 </p>
                 <Progress value={usedPct} className="mt-3" />
                 <div className="mt-3 flex justify-between text-xs text-muted-foreground">
-                  <span>{balance.usedDays} used</span>
-                  <span>{balance.pendingDays} pending approval</span>
+                  <span>{t('leave.mine.used', { count: balance.usedDays })}</span>
+                  <span>{t('leave.mine.pendingApproval', { count: balance.pendingDays })}</span>
                 </div>
               </>
             ) : (
@@ -117,16 +119,34 @@ export default function MyLeavePage() {
             .filter((u) => u.leaveType !== 'AnnualLeave')
             .slice(0, 3)
             .map((u) => (
-              <StatCard key={u.leaveType} label={humanize(u.leaveType)} value={`${u.approvedDays} d`} icon={CalendarDays} hint={u.pendingDays ? `${u.pendingDays} day(s) pending` : 'Approved this year'} />
+              <StatCard
+                key={u.leaveType}
+                label={enumLabel('LeaveType', u.leaveType)}
+                value={t('leave.mine.typeValue', { count: u.approvedDays })}
+                icon={CalendarDays}
+                hint={u.pendingDays ? t('leave.mine.typePending', { count: u.pendingDays }) : t('leave.mine.approvedThisYear')}
+              />
             ))}
         </div>
       </div>
 
       <Card className="mt-6">
         <FilterBar onReset={table.reset} showReset={table.hasActiveFilters}>
-          <p className="mr-auto text-sm font-semibold">My requests</p>
-          <FilterSelect label="All types" value={table.filters.leaveType} onChange={(v) => table.setFilter('leaveType', v)} options={LEAVE_TYPES} />
-          <FilterSelect label="All statuses" value={table.filters.status} onChange={(v) => table.setFilter('status', v)} options={LEAVE_STATUSES} />
+          <p className="mr-auto text-sm font-semibold">{t('leave.mine.myRequests')}</p>
+          <FilterSelect
+            label={t('leave.mine.allTypes')}
+            value={table.filters.leaveType}
+            onChange={(v) => table.setFilter('leaveType', v)}
+            options={LEAVE_TYPES}
+            enumType="LeaveType"
+          />
+          <FilterSelect
+            label={t('leave.mine.allStatuses')}
+            value={table.filters.status}
+            onChange={(v) => table.setFilter('status', v)}
+            options={LEAVE_STATUSES}
+            enumType="LeaveStatus"
+          />
         </FilterBar>
         <DataTable
           columns={columns}
@@ -142,11 +162,11 @@ export default function MyLeavePage() {
           empty={
             <EmptyState
               icon={CalendarDays}
-              title="No leave requests"
-              description="Planning time off? Submit a request and your manager will be notified."
+              title={t('leave.mine.none')}
+              description={t('leave.mine.noneHint')}
               action={
                 <Button asChild size="sm">
-                  <Link to="/leave/new">Request leave</Link>
+                  <Link to="/leave/new">{t('leave.mine.request')}</Link>
                 </Button>
               }
             />
@@ -157,9 +177,16 @@ export default function MyLeavePage() {
       <ConfirmDialog
         open={!!cancelling}
         onOpenChange={(open) => !open && setCancelling(null)}
-        title="Cancel this leave request?"
-        description={cancelling ? `${humanize(cancelling.leaveType)}, ${cancelling.totalDays} day(s). This cannot be undone; submit a new request if needed.` : ''}
-        confirmLabel="Cancel request"
+        title={t('leave.mine.confirmCancelTitle')}
+        description={
+          cancelling
+            ? t('leave.mine.confirmCancelBody', {
+                type: enumLabel('LeaveType', cancelling.leaveType),
+                days: t('common.days', { count: cancelling.totalDays }),
+              })
+            : ''
+        }
+        confirmLabel={t('leave.mine.confirmCancel')}
         destructive
         onConfirm={() => cancel.mutateAsync(cancelling!.id)}
       />

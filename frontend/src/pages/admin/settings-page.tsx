@@ -1,6 +1,7 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { ImageUp, Lock, Save } from 'lucide-react'
 import { useRef, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 import { API_URL, getErrorMessage, getFieldErrors } from '@/api/client'
 import { settingsApi } from '@/api/endpoints'
@@ -15,14 +16,10 @@ import { usePermissions } from '@/store/auth-store'
 import type { Setting } from '@/types/models'
 import { formatRelative } from '@/utils/format'
 
-const SECTIONS: { category: string; title: string; description: string }[] = [
-  { category: 'General', title: 'General', description: 'Company identity used across the platform and in reports.' },
-  { category: 'Leave', title: 'Leave', description: 'Annual allowance and carry-over rules applied to new yearly balances.' },
-  { category: 'Files', title: 'Files', description: 'Upload limits for documents and receipts. Executable types are always blocked.' },
-  { category: 'Security', title: 'Security', description: 'Session lifetime, password policy and account lockout.' },
-]
+const SECTIONS = ['General', 'Leave', 'Files', 'Security'] as const
 
 export default function SettingsPage() {
+  const { t, i18n } = useTranslation()
   const { data, isLoading, error, refetch } = useQuery({ queryKey: ['admin', 'settings'], queryFn: settingsApi.all })
 
   if (isLoading) return <PageSkeleton />
@@ -30,11 +27,17 @@ export default function SettingsPage() {
 
   return (
     <>
-      <PageHeader title="System settings" description="Configure company details and platform policies. Leave, file and security settings require a SuperAdmin." />
+      <PageHeader title={t('admin.settings.title')} description={t('admin.settings.description')} />
       <div className="space-y-6">
         <LogoCard />
-        {SECTIONS.map((section) => (
-          <SettingsSection key={section.category} {...section} settings={data.filter((s) => s.category === section.category)} />
+        {SECTIONS.map((category) => (
+          <SettingsSection
+            // Labels come from the server in the current language; remount so drafts start from fresh values.
+            key={`${category}-${i18n.language}`}
+            title={t(`admin.settings.sections.${category}.title`)}
+            description={t(`admin.settings.sections.${category}.description`)}
+            settings={data.filter((s) => s.category === category)}
+          />
         ))}
       </div>
     </>
@@ -42,6 +45,7 @@ export default function SettingsPage() {
 }
 
 function SettingsSection({ title, description, settings }: { title: string; description: string; settings: Setting[] }) {
+  const { t } = useTranslation()
   const queryClient = useQueryClient()
   const [values, setValues] = useState<Record<string, string>>(() => Object.fromEntries(settings.map((s) => [s.key, s.value])))
   const [errors, setErrors] = useState<Record<string, string>>({})
@@ -56,7 +60,7 @@ function SettingsSection({ title, description, settings }: { title: string; desc
       const updated = await settingsApi.update(Object.fromEntries(changed.map((s) => [s.key, values[s.key]])))
       queryClient.setQueryData(['admin', 'settings'], updated)
       await queryClient.invalidateQueries({ queryKey: ['settings', 'public'] })
-      toast.success(`${title} settings saved.`)
+      toast.success(t('admin.settings.saved', { section: title }))
     } catch (error) {
       const fieldErrors = getFieldErrors(error)
       setErrors(Object.fromEntries(Object.entries(fieldErrors).map(([key, messages]) => [key, messages[0]])))
@@ -73,7 +77,7 @@ function SettingsSection({ title, description, settings }: { title: string; desc
           {title}
           {!editable && (
             <span className="flex items-center gap-1 text-xs font-normal text-muted-foreground">
-              <Lock className="size-3" /> SuperAdmin only
+              <Lock className="size-3" /> {t('admin.settings.superAdminOnly')}
             </span>
           )}
         </CardTitle>
@@ -82,7 +86,7 @@ function SettingsSection({ title, description, settings }: { title: string; desc
       <CardContent className="grid gap-5 sm:grid-cols-2">
         {settings.map((s) => {
           const id = s.key.replace('.', '-')
-          const hint = [s.description, s.minValue !== null && s.maxValue !== null ? `Range ${s.minValue}–${s.maxValue}.` : null].filter(Boolean).join(' ')
+          const hint = [s.description, s.minValue !== null && s.maxValue !== null ? t('admin.settings.range', { min: s.minValue, max: s.maxValue }) : null].filter(Boolean).join(' ')
           if (s.dataType === 'Boolean') {
             return (
               <div key={s.key} className="flex items-start justify-between gap-4 rounded-md border p-3">
@@ -115,15 +119,17 @@ function SettingsSection({ title, description, settings }: { title: string; desc
       {editable && (
         <CardFooter className="justify-between gap-2">
           <span className="text-xs text-muted-foreground">
-            {settings.some((s) => s.updatedAt) ? `Last changed ${formatRelative(settings.map((s) => s.updatedAt).filter(Boolean).sort().at(-1))}` : 'Using defaults'}
+            {settings.some((s) => s.updatedAt)
+              ? t('admin.settings.lastChanged', { when: formatRelative(settings.map((s) => s.updatedAt).filter(Boolean).sort().at(-1)) })
+              : t('admin.settings.defaults')}
           </span>
           <div className="flex gap-2">
             <Button variant="ghost" disabled={!changed.length || saving} onClick={() => setValues(Object.fromEntries(settings.map((s) => [s.key, s.value])))}>
-              Discard
+              {t('admin.settings.discard')}
             </Button>
             <Button onClick={save} disabled={!changed.length || saving}>
               {saving ? <Spinner /> : <Save />}
-              Save {changed.length ? `(${changed.length})` : ''}
+              {changed.length ? t('admin.settings.saveCount', { count: changed.length }) : t('admin.settings.save')}
             </Button>
           </div>
         </CardFooter>
@@ -133,6 +139,7 @@ function SettingsSection({ title, description, settings }: { title: string; desc
 }
 
 function LogoCard() {
+  const { t } = useTranslation()
   const { isAdmin } = usePermissions()
   const fileInput = useRef<HTMLInputElement>(null)
   const publicSettings = useQuery({ queryKey: ['settings', 'public'], queryFn: settingsApi.public })
@@ -140,29 +147,29 @@ function LogoCard() {
   const upload = useApiMutation({
     mutationFn: (file: File) => settingsApi.uploadLogo(file),
     invalidate: [['settings', 'public']],
-    successMessage: 'Logo updated.',
+    successMessage: t('admin.settings.logo.updated'),
     onSuccess: () => setVersion((v) => v + 1),
   })
 
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Company logo</CardTitle>
-        <CardDescription>Shown in the navigation and on the sign-in page. PNG, JPG or WEBP up to 2 MB.</CardDescription>
+        <CardTitle>{t('admin.settings.logo.title')}</CardTitle>
+        <CardDescription>{t('admin.settings.logo.description')}</CardDescription>
       </CardHeader>
       <CardContent className="flex items-center gap-4">
         <div className="flex size-16 items-center justify-center overflow-hidden rounded-lg border bg-muted/40">
           {publicSettings.data?.hasLogo ? (
-            <img src={`${API_URL}/settings/logo?v=${version}`} alt="Company logo" className="size-full object-contain" />
+            <img src={`${API_URL}/settings/logo?v=${version}`} alt={t('admin.settings.logo.alt')} className="size-full object-contain" />
           ) : (
-            <span className="text-xs text-muted-foreground">None</span>
+            <span className="text-xs text-muted-foreground">{t('admin.settings.logo.none')}</span>
           )}
         </div>
         {isAdmin && (
           <>
             <Button variant="outline" onClick={() => fileInput.current?.click()} disabled={upload.isPending}>
               {upload.isPending ? <Spinner /> : <ImageUp />}
-              Upload logo
+              {t('admin.settings.logo.upload')}
             </Button>
             <input
               ref={fileInput}

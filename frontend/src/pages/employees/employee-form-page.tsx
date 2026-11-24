@@ -1,4 +1,5 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { useTranslation } from 'react-i18next'
 import { useNavigate, useParams } from 'react-router'
 import { toast } from 'sonner'
 import { employeesApi, type EmployeePayload } from '@/api/endpoints'
@@ -7,6 +8,7 @@ import { ErrorState, PageSkeleton } from '@/components/common/states'
 import { EmployeeForm } from '@/features/employees/employee-form'
 
 export default function EmployeeFormPage() {
+  const { t } = useTranslation()
   const { id } = useParams()
   const employeeId = id ? Number(id) : undefined
   const navigate = useNavigate()
@@ -22,7 +24,7 @@ export default function EmployeeFormPage() {
     const saved = employeeId ? await employeesApi.update(employeeId, payload) : await employeesApi.create(payload)
     await queryClient.invalidateQueries({ queryKey: ['employees'] })
     await queryClient.invalidateQueries({ queryKey: ['lookups', 'employees'] })
-    toast.success(employeeId ? 'Employee updated.' : `${saved.fullName} was added.`)
+    toast.success(employeeId ? t('employees.formPage.updated') : t('employees.formPage.added', { name: saved.fullName }))
     navigate(`/employees/${saved.id}`)
   }
 
@@ -32,9 +34,9 @@ export default function EmployeeFormPage() {
   return (
     <>
       <PageHeader
-        title={employee ? `Edit ${employee.fullName}` : 'Add employee'}
-        description={employee ? 'Update employment details and organizational assignment.' : 'Create an employee record and, optionally, a sign-in account.'}
-        back={employee ? { to: `/employees/${employee.id}`, label: employee.fullName } : { to: '/employees', label: 'Employees' }}
+        title={employee ? t('employees.formPage.edit', { name: employee.fullName }) : t('employees.formPage.add')}
+        description={employee ? t('employees.formPage.editDescription') : t('employees.formPage.addDescription')}
+        back={employee ? { to: `/employees/${employee.id}`, label: employee.fullName } : { to: '/employees', label: t('employees.list.title') }}
       />
       <EmployeeForm employee={employee} onSubmit={save} cancelTo={employee ? `/employees/${employee.id}` : '/employees'} />
     </>

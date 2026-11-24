@@ -1,4 +1,3 @@
-using System.Globalization;
 using CorporateOS.Application.Common.Activity;
 using CorporateOS.Application.Common.Exceptions;
 using CorporateOS.Application.Common.Interfaces;
@@ -160,9 +159,9 @@ public sealed class DashboardService(
 
         return leaveItems.Items
             .Select(l => new PendingApprovalDto("Leave", l.Id, l.EmployeeName,
-                $"{l.LeaveType} · {l.TotalDays} day(s) from {l.StartDate:MMM d}", l.CreatedAt))
+                Text.Get("dashboard.pendingLeave", l.LeaveType, l.TotalDays, l.StartDate), l.CreatedAt))
             .Concat(expenseItems.Items.Select(e => new PendingApprovalDto("Expense", e.Id, e.EmployeeName,
-                $"{e.Category} · {e.Amount.ToString("N2", CultureInfo.InvariantCulture)} {e.Currency}", e.SubmittedAt ?? e.CreatedAt)))
+                Text.Get("dashboard.pendingExpense", e.Category, e.Amount, e.Currency), e.SubmittedAt ?? e.CreatedAt)))
             .OrderBy(p => p.SubmittedAt)
             .Take(8)
             .ToList();
@@ -208,7 +207,7 @@ public sealed class DashboardService(
             .ToList();
     }
 
-    private static string MonthLabel(DateOnly month) => month.ToString("MMM yy", CultureInfo.InvariantCulture);
+    private static string MonthLabel(DateOnly month) => month.ToString("MMM yy", Languages.Culture(Languages.Current));
 
     private DateTime Now => clock.GetUtcNow().UtcDateTime;
 

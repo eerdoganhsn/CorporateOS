@@ -1,4 +1,5 @@
 import { CalendarClock, CheckCircle2, Clock, Megaphone, Pin } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 import { Link } from 'react-router'
 import { PriorityBadge, StatusBadge } from '@/components/common/badges'
 import { EmptyState } from '@/components/common/states'
@@ -25,7 +26,8 @@ export function ListCard({ title, action, children }: { title: string; action?: 
 }
 
 export function PendingApprovalsList({ items }: { items: PendingApproval[] }) {
-  if (items.length === 0) return <EmptyState icon={CheckCircle2} title="Nothing waiting for approval" className="py-6" />
+  const { t } = useTranslation()
+  if (items.length === 0) return <EmptyState icon={CheckCircle2} title={t('dashboard.empty.nothingPending')} className="py-6" />
   return (
     <ul className="divide-y">
       {items.map((item) => (
@@ -39,7 +41,7 @@ export function PendingApprovalsList({ items }: { items: PendingApproval[] }) {
               <p className="truncate text-xs text-muted-foreground">{item.summary}</p>
             </div>
             <div className="shrink-0 text-right">
-              <Badge variant="outline">{item.type}</Badge>
+              <Badge variant="outline">{t(`dashboard.approvalType.${item.type}`)}</Badge>
               <p className="mt-1 text-[11px] text-muted-foreground">{formatRelative(item.submittedAt)}</p>
             </div>
           </Link>
@@ -50,7 +52,8 @@ export function PendingApprovalsList({ items }: { items: PendingApproval[] }) {
 }
 
 export function DeadlineList({ items }: { items: Deadline[] }) {
-  if (items.length === 0) return <EmptyState icon={CalendarClock} title="No upcoming deadlines" className="py-6" />
+  const { t } = useTranslation()
+  if (items.length === 0) return <EmptyState icon={CalendarClock} title={t('dashboard.empty.noDeadlines')} className="py-6" />
   return (
     <ul className="divide-y">
       {items.map((item) => (
@@ -62,12 +65,12 @@ export function DeadlineList({ items }: { items: Deadline[] }) {
             <div className="min-w-0">
               <p className="truncate text-sm font-medium">{item.title}</p>
               <p className="truncate text-xs text-muted-foreground">
-                {item.type} · {item.context}
+                {t(`dashboard.deadlineType.${item.type}`)} · {item.context}
               </p>
             </div>
             <span className={cn('flex shrink-0 items-center gap-1 text-xs', item.isOverdue ? 'font-medium text-red-600' : 'text-muted-foreground')}>
               <Clock className="size-3" />
-              {item.isOverdue ? 'Overdue · ' : ''}
+              {item.isOverdue ? t('dashboard.overduePrefix') : ''}
               {formatDate(item.dueDate)}
             </span>
           </Link>
@@ -78,7 +81,8 @@ export function DeadlineList({ items }: { items: Deadline[] }) {
 }
 
 export function AnnouncementList({ items }: { items: Announcement[] }) {
-  if (items.length === 0) return <EmptyState icon={Megaphone} title="No announcements" className="py-6" />
+  const { t } = useTranslation()
+  if (items.length === 0) return <EmptyState icon={Megaphone} title={t('dashboard.empty.noAnnouncements')} className="py-6" />
   return (
     <ul className="divide-y">
       {items.map((item) => (
@@ -87,7 +91,7 @@ export function AnnouncementList({ items }: { items: Announcement[] }) {
             <div className="flex items-center gap-2">
               {item.isPinned && <Pin className="size-3 shrink-0 text-muted-foreground" />}
               <p className="truncate text-sm font-medium">{item.title}</p>
-              {(item.priority === 'High' || item.priority === 'Urgent') && <PriorityBadge priority={item.priority} />}
+              {(item.priority === 'High' || item.priority === 'Urgent') && <PriorityBadge priority={item.priority} type="AnnouncementPriority" />}
             </div>
             <p className="mt-0.5 line-clamp-1 text-xs text-muted-foreground">{item.content}</p>
             <p className="mt-1 text-[11px] text-muted-foreground">
@@ -101,7 +105,9 @@ export function AnnouncementList({ items }: { items: Announcement[] }) {
 }
 
 export function TaskMiniList({ items }: { items: TaskListItem[] }) {
-  if (items.length === 0) return <EmptyState icon={CheckCircle2} title="No open tasks" description="You're all caught up." className="py-6" />
+  const { t } = useTranslation()
+  if (items.length === 0)
+    return <EmptyState icon={CheckCircle2} title={t('dashboard.empty.noOpenTasks')} description={t('dashboard.empty.caughtUp')} className="py-6" />
   return (
     <ul className="divide-y">
       {items.map((task) => (
@@ -110,12 +116,12 @@ export function TaskMiniList({ items }: { items: TaskListItem[] }) {
             <div className="min-w-0">
               <p className="truncate text-sm font-medium">{task.title}</p>
               <p className="truncate text-xs text-muted-foreground">
-                {task.projectCode} · {task.dueDate ? `Due ${formatDate(task.dueDate)}` : 'No due date'}
+                {task.projectCode} · {task.dueDate ? t('dashboard.due', { date: formatDate(task.dueDate) }) : t('dashboard.noDueDate')}
               </p>
             </div>
             <div className="flex shrink-0 items-center gap-1.5">
-              {task.isOverdue && <Badge variant="danger">Overdue</Badge>}
-              <StatusBadge status={task.status} />
+              {task.isOverdue && <Badge variant="danger">{t('dashboard.overdue')}</Badge>}
+              <StatusBadge status={task.status} type="TaskStatus" />
             </div>
           </Link>
         </li>

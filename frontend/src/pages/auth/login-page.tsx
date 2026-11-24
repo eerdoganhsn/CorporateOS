@@ -3,6 +3,7 @@ import { useQueryClient } from '@tanstack/react-query'
 import { AlertCircle, Info } from 'lucide-react'
 import { useState } from 'react'
 import { useForm } from 'react-hook-form'
+import { useTranslation } from 'react-i18next'
 import { Link, useLocation, useNavigate, useSearchParams } from 'react-router'
 import { z } from 'zod'
 import { getErrorMessage } from '@/api/client'
@@ -12,14 +13,15 @@ import { Spinner } from '@/components/common/states'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/form-controls'
 import { useAuthStore } from '@/store/auth-store'
+import type { Role } from '@/types/enums'
 
 const schema = z.object({
-  email: z.string().trim().min(1, 'Email is required.').email('Enter a valid email address.'),
-  password: z.string().min(1, 'Password is required.'),
+  email: z.string().trim().min(1, 'account.validation.emailRequired').email('common.validation.email'),
+  password: z.string().min(1, 'account.validation.passwordRequired'),
 })
 type FormValues = z.infer<typeof schema>
 
-const DEMO_ACCOUNTS = [
+const DEMO_ACCOUNTS: { role: Role; email: string }[] = [
   { role: 'SuperAdmin', email: 'superadmin@corporateos.local' },
   { role: 'Admin', email: 'admin@corporateos.local' },
   { role: 'Manager', email: 'manager@corporateos.local' },
@@ -30,6 +32,7 @@ const DEMO_ACCOUNTS = [
 const SHOW_DEMO_ACCOUNTS = import.meta.env.DEV || import.meta.env.VITE_SHOW_DEMO_ACCOUNTS === 'true'
 
 export default function LoginPage() {
+  const { t } = useTranslation()
   const navigate = useNavigate()
   const location = useLocation()
   const [params] = useSearchParams()
@@ -54,21 +57,21 @@ export default function LoginPage() {
       setSession(session)
       navigate(from, { replace: true })
     } catch (err) {
-      setError(getErrorMessage(err, 'Sign-in failed.'))
+      setError(getErrorMessage(err, t('account.login.failed')))
     }
   }
 
   return (
     <div className="space-y-6">
       <div className="space-y-1">
-        <h1 className="text-2xl font-semibold tracking-tight">Sign in</h1>
-        <p className="text-muted-foreground text-sm">Use your company account to continue.</p>
+        <h1 className="text-2xl font-semibold tracking-tight">{t('account.login.title')}</h1>
+        <p className="text-muted-foreground text-sm">{t('account.login.subtitle')}</p>
       </div>
 
       {params.get('reset') === '1' && (
         <p className="flex items-start gap-2 rounded-md border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-800">
           <Info className="mt-0.5 size-4 shrink-0" />
-          Your password has been reset. Sign in with your new password.
+          {t('account.login.resetDone')}
         </p>
       )}
       {error && (
@@ -82,7 +85,7 @@ export default function LoginPage() {
       )}
 
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-4" noValidate>
-        <FormField label="Email" htmlFor="email" error={errors.email?.message}>
+        <FormField label={t('account.fields.email')} htmlFor="email" error={errors.email?.message}>
           <Input
             id="email"
             type="email"
@@ -92,7 +95,7 @@ export default function LoginPage() {
             {...register('email')}
           />
         </FormField>
-        <FormField label="Password" htmlFor="password" error={errors.password?.message}>
+        <FormField label={t('account.fields.password')} htmlFor="password" error={errors.password?.message}>
           <Input
             id="password"
             type="password"
@@ -106,20 +109,20 @@ export default function LoginPage() {
             to="/forgot-password"
             className="text-muted-foreground hover:text-foreground text-sm font-medium"
           >
-            Forgot password?
+            {t('account.login.forgot')}
           </Link>
         </div>
         <Button type="submit" className="w-full" disabled={isSubmitting}>
           {isSubmitting && <Spinner />}
-          Sign in
+          {t('account.login.submit')}
         </Button>
       </form>
 
       {SHOW_DEMO_ACCOUNTS && (
         <div className="rounded-md border border-dashed p-3">
-          <p className="text-xs font-medium">Demo accounts (development only)</p>
+          <p className="text-xs font-medium">{t('account.login.demoTitle')}</p>
           <p className="text-muted-foreground mb-2 text-xs">
-            Password: <code className="bg-muted rounded px-1">CorporateOS123!</code>
+            {t('account.login.demoPassword')} <code className="bg-muted rounded px-1">CorporateOS123!</code>
           </p>
           <div className="grid grid-cols-2 gap-1.5">
             {DEMO_ACCOUNTS.map((account) => (
@@ -133,7 +136,7 @@ export default function LoginPage() {
                   setValue('password', 'CorporateOS123!', { shouldValidate: true })
                 }}
               >
-                {account.role}
+                {t(`enums.Role.${account.role}`)}
               </Button>
             ))}
           </div>

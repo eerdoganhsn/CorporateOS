@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
 import { Check, ClipboardCheck, Pencil, X } from 'lucide-react'
 import { useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { useSearchParams } from 'react-router'
 import { leaveApi } from '@/api/endpoints'
 import { DataTable, type Column, type SortState } from '@/components/common/data-table'
@@ -22,22 +23,28 @@ import { useTableState } from '@/hooks/use-table-state'
 import { usePermissions } from '@/store/auth-store'
 import { LEAVE_STATUSES, LEAVE_TYPES, type LeaveStatus, type LeaveType } from '@/types/enums'
 import type { LeaveBalance, LeaveRequest } from '@/types/models'
-import { formatDate, humanize } from '@/utils/format'
+import { enumLabel } from '@/i18n/enum-label'
+import { formatDate } from '@/utils/format'
 
 export default function LeaveApprovalsPage() {
+  const { t } = useTranslation()
   const [params, setParams] = useSearchParams()
   const tab = params.get('tab') ?? 'pending'
 
   return (
     <>
-      <PageHeader title="Leave approvals" description="Review requests, see who is out and manage balances." back={{ to: '/leave', label: 'Leave Management' }} />
+      <PageHeader
+        title={t('leave.approvals.title')}
+        description={t('leave.approvals.description')}
+        back={{ to: '/leave', label: t('leave.title') }}
+      />
       <Card>
         <Tabs value={tab} onValueChange={(v) => setParams({ tab: v }, { replace: true })} className="gap-0">
           <TabsList className="px-3">
-            <TabsTrigger value="pending">Pending</TabsTrigger>
-            <TabsTrigger value="all">All requests</TabsTrigger>
-            <TabsTrigger value="calendar">Calendar</TabsTrigger>
-            <TabsTrigger value="balances">Balances</TabsTrigger>
+            <TabsTrigger value="pending">{t('leave.approvals.tabs.pending')}</TabsTrigger>
+            <TabsTrigger value="all">{t('leave.approvals.tabs.all')}</TabsTrigger>
+            <TabsTrigger value="calendar">{t('leave.approvals.tabs.calendar')}</TabsTrigger>
+            <TabsTrigger value="balances">{t('leave.approvals.tabs.balances')}</TabsTrigger>
           </TabsList>
           <TabsContent value="pending">
             <PendingRequests />
@@ -58,23 +65,34 @@ export default function LeaveApprovalsPage() {
 }
 
 function useDecision() {
+  const { t } = useTranslation()
   const [target, setTarget] = useState<{ request: LeaveRequest; decision: Decision } | null>(null)
   const invalidate = [['leave'], ['dashboard'], ['notifications']]
   const approve = useApiMutation({
     mutationFn: ({ id, note }: { id: number; note: string }) => leaveApi.approve(id, note || undefined),
     invalidate,
-    successMessage: (r) => `Approved ${r.employeeName}'s leave.`,
+    successMessage: (r) => t('leave.approvals.approved', { name: r.employeeName }),
   })
   const reject = useApiMutation({
     mutationFn: ({ id, reason }: { id: number; reason: string }) => leaveApi.reject(id, reason),
     invalidate,
-    successMessage: (r) => `Rejected ${r.employeeName}'s leave.`,
+    successMessage: (r) => t('leave.approvals.rejected', { name: r.employeeName }),
   })
 
   const dialog = (
     <DecisionDialog
       decision={target?.decision ?? null}
-      subject={target ? `${target.request.employeeName} · ${humanize(target.request.leaveType)} · ${formatDate(target.request.startDate)} – ${formatDate(target.request.endDate)} (${target.request.totalDays} day(s))` : ''}
+      subject={
+        target
+          ? t('leave.approvals.subject', {
+              name: target.request.employeeName,
+              type: enumLabel('LeaveType', target.request.leaveType),
+              start: formatDate(target.request.startDate),
+              end: formatDate(target.request.endDate),
+              days: t('common.days', { count: target.request.totalDays }),
+            })
+          : ''
+      }
       onClose={() => setTarget(null)}
       onSubmit={(text) =>
         target!.decision === 'approve' ? approve.mutateAsync({ id: target!.request.id, note: text }) : reject.mutateAsync({ id: target!.request.id, reason: text })
@@ -91,11 +109,11 @@ function useDecision() {
         <div className="flex justify-end gap-1.5">
           <Button size="sm" variant="outline" onClick={() => setTarget({ request: l, decision: 'reject' })}>
             <X />
-            Reject
+            {t('common.actions.reject')}
           </Button>
           <Button size="sm" onClick={() => setTarget({ request: l, decision: 'approve' })}>
             <Check />
-            Approve
+            {t('common.actions.approve')}
           </Button>
         </div>
       ) : null,
@@ -105,6 +123,7 @@ function useDecision() {
 }
 
 function PendingRequests() {
+  const { t } = useTranslation()
   const [page, setPage] = useState(1)
   const [sort, setSort] = useState<SortState>({ sortBy: 'createdAt', sortDirection: 'asc' })
   const query = { scope: 'Approvals' as const, page, pageSize: 20, ...sort }
@@ -123,7 +142,7 @@ function PendingRequests() {
         sort={sort}
         onSortChange={setSort}
         onPageChange={setPage}
-        empty={<EmptyState icon={ClipboardCheck} title="No pending requests" description="New requests from your team will appear here." />}
+        empty={<EmptyState icon={ClipboardCheck} title={t('leave.approvals.none')} description={t('leave.approvals.noneHint')} />}
       />
       {dialog}
     </>
@@ -131,6 +150,7 @@ function PendingRequests() {
 }
 
 function AllRequests() {
+  const { t } = useTranslation()
   const { isAdmin } = usePermissions()
   const departments = useDepartmentLookup()
   const table = useTableState(['status', 'leaveType', 'departmentId', 'from', 'to'] as const, { sortBy: 'startDate', sortDirection: 'desc' })
@@ -152,19 +172,31 @@ function AllRequests() {
   return (
     <>
       <FilterBar onReset={table.reset} showReset={table.hasActiveFilters}>
-        <SearchInput value={table.search} onChange={table.setSearch} placeholder="Search employee…" />
+        <SearchInput value={table.search} onChange={table.setSearch} placeholder={t('leave.approvals.searchEmployee')} />
         {isAdmin && (
           <FilterSelect
-            label="All departments"
+            label={t('leave.approvals.allDepartments')}
             value={table.filters.departmentId}
             onChange={(v) => table.setFilter('departmentId', v)}
             options={(departments.data ?? []).map((d) => ({ value: d.id, label: d.name }))}
           />
         )}
-        <FilterSelect label="All types" value={table.filters.leaveType} onChange={(v) => table.setFilter('leaveType', v)} options={LEAVE_TYPES} />
-        <FilterSelect label="All statuses" value={table.filters.status} onChange={(v) => table.setFilter('status', v)} options={LEAVE_STATUSES} />
-        <Input type="date" aria-label="From" className="w-full sm:w-36" value={table.filters.from ?? ''} onChange={(e) => table.setFilter('from', e.target.value || undefined)} />
-        <Input type="date" aria-label="To" className="w-full sm:w-36" value={table.filters.to ?? ''} onChange={(e) => table.setFilter('to', e.target.value || undefined)} />
+        <FilterSelect
+          label={t('leave.approvals.allTypes')}
+          value={table.filters.leaveType}
+          onChange={(v) => table.setFilter('leaveType', v)}
+          options={LEAVE_TYPES}
+          enumType="LeaveType"
+        />
+        <FilterSelect
+          label={t('leave.approvals.allStatuses')}
+          value={table.filters.status}
+          onChange={(v) => table.setFilter('status', v)}
+          options={LEAVE_STATUSES}
+          enumType="LeaveStatus"
+        />
+        <Input type="date" aria-label={t('leave.approvals.from')} className="w-full sm:w-36" value={table.filters.from ?? ''} onChange={(e) => table.setFilter('from', e.target.value || undefined)} />
+        <Input type="date" aria-label={t('leave.approvals.to')} className="w-full sm:w-36" value={table.filters.to ?? ''} onChange={(e) => table.setFilter('to', e.target.value || undefined)} />
       </FilterBar>
       <DataTable
         columns={[...leaveColumns({ showEmployee: true }), actionColumn]}
@@ -187,6 +219,7 @@ const CURRENT_YEAR = new Date().getFullYear()
 const YEAR_OPTIONS = [CURRENT_YEAR - 1, CURRENT_YEAR, CURRENT_YEAR + 1].map((y) => ({ value: y, label: String(y) }))
 
 function Balances() {
+  const { t } = useTranslation()
   const { isAdmin } = usePermissions()
   const [year, setYear] = useState(new Date().getFullYear())
   const [page, setPage] = useState(1)
@@ -198,7 +231,7 @@ function Balances() {
   const columns: Column<LeaveBalance>[] = [
     {
       key: 'employee',
-      header: 'Employee',
+      header: t('leave.balances.employee'),
       cell: (b) => (
         <div>
           <p className="font-medium">{b.employeeName}</p>
@@ -206,10 +239,10 @@ function Balances() {
         </div>
       ),
     },
-    { key: 'total', header: 'Allowance', className: 'tabular-nums', cell: (b) => b.totalDays },
-    { key: 'used', header: 'Used', className: 'tabular-nums', cell: (b) => b.usedDays },
-    { key: 'pending', header: 'Pending', className: 'tabular-nums', cell: (b) => b.pendingDays },
-    { key: 'remaining', header: 'Remaining', className: 'font-medium tabular-nums', cell: (b) => b.remainingDays },
+    { key: 'total', header: t('leave.balances.allowance'), className: 'tabular-nums', cell: (b) => b.totalDays },
+    { key: 'used', header: t('leave.balances.used'), className: 'tabular-nums', cell: (b) => b.usedDays },
+    { key: 'pending', header: t('leave.balances.pending'), className: 'tabular-nums', cell: (b) => b.pendingDays },
+    { key: 'remaining', header: t('leave.balances.remaining'), className: 'font-medium tabular-nums', cell: (b) => b.remainingDays },
   ]
   if (isAdmin) {
     columns.push({
@@ -217,7 +250,7 @@ function Balances() {
       header: '',
       className: 'w-12',
       cell: (b) => (
-        <Button variant="ghost" size="icon-sm" aria-label={`Adjust ${b.employeeName}'s allowance`} onClick={() => setEditing(b)}>
+        <Button variant="ghost" size="icon-sm" aria-label={t('leave.balances.adjustNamed', { name: b.employeeName })} onClick={() => setEditing(b)}>
           <Pencil />
         </Button>
       ),
@@ -227,9 +260,9 @@ function Balances() {
   return (
     <>
       <FilterBar>
-        <SearchInput value={search} onChange={(v) => { setSearch(v); setPage(1) }} placeholder="Search employee…" />
+        <SearchInput value={search} onChange={(v) => { setSearch(v); setPage(1) }} placeholder={t('leave.approvals.searchEmployee')} />
         <FilterSelect
-          label="Year"
+          label={t('leave.balances.year')}
           value={String(year)}
           onChange={(v) => { setYear(Number(v ?? new Date().getFullYear())); setPage(1) }}
           options={YEAR_OPTIONS}
@@ -242,6 +275,7 @@ function Balances() {
 }
 
 function BalanceDialog({ balance, onClose }: { balance: LeaveBalance | null; onClose: () => void }) {
+  const { t } = useTranslation()
   const [value, setValue] = useState('')
   const [shownFor, setShownFor] = useState<LeaveBalance | null>(null)
   if (balance !== shownFor) {
@@ -252,7 +286,7 @@ function BalanceDialog({ balance, onClose }: { balance: LeaveBalance | null; onC
   const save = useApiMutation({
     mutationFn: () => leaveApi.updateBalance(balance!.employeeId, balance!.year, Number(value)),
     invalidate: [['leave']],
-    successMessage: 'Allowance updated.',
+    successMessage: t('leave.balances.updated'),
     onSuccess: onClose,
   })
   const numeric = Number(value)
@@ -262,21 +296,25 @@ function BalanceDialog({ balance, onClose }: { balance: LeaveBalance | null; onC
     <Dialog open={!!balance} onOpenChange={(open) => !open && onClose()}>
       <DialogContent className="sm:max-w-sm">
         <DialogHeader>
-          <DialogTitle>Adjust annual allowance</DialogTitle>
+          <DialogTitle>{t('leave.balances.dialogTitle')}</DialogTitle>
           <DialogDescription>
             {balance?.employeeName} · {balance?.year}
           </DialogDescription>
         </DialogHeader>
-        <FormField label="Total days" htmlFor="totalDays" error={invalid && value !== '' ? `Must be a whole number between ${balance?.usedDays ?? 0} (used) and 90.` : undefined}>
+        <FormField
+          label={t('leave.balances.totalDays')}
+          htmlFor="totalDays"
+          error={invalid && value !== '' ? t('leave.balances.range', { min: balance?.usedDays ?? 0 }) : undefined}
+        >
           <Input id="totalDays" type="number" min={balance?.usedDays ?? 0} max={90} value={value} onChange={(e) => setValue(e.target.value)} />
         </FormField>
         <DialogFooter>
           <Button variant="outline" onClick={onClose}>
-            Cancel
+            {t('common.actions.cancel')}
           </Button>
           <Button onClick={() => save.mutate()} disabled={invalid || save.isPending}>
             {save.isPending && <Spinner />}
-            Save
+            {t('common.actions.save')}
           </Button>
         </DialogFooter>
       </DialogContent>

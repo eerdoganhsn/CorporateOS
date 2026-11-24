@@ -1,7 +1,7 @@
 import { z } from 'zod'
 
 /** Optional numeric text input ("" allowed) validated as a non-negative number. */
-export const optionalAmount = (message = 'Enter a valid number.') =>
+export const optionalAmount = (message = 'common.validation.number') =>
   z
     .string()
     .trim()

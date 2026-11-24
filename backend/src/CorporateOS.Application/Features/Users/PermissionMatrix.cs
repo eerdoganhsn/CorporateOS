@@ -1,4 +1,5 @@
 using CorporateOS.Domain.Constants;
+using CorporateOS.Domain.Localization;
 
 namespace CorporateOS.Application.Features.Users;
 
@@ -14,33 +15,41 @@ public static class PermissionMatrix
     private static readonly string[] Admins = [Roles.SuperAdmin, Roles.Admin];
     private static readonly string[] SuperAdmins = [Roles.SuperAdmin];
 
-    public static readonly IReadOnlyList<PermissionDto> All =
+    private static readonly (string Area, string Permission, string[] Roles)[] Entries =
     [
-        new("Profile", "View and edit own profile and password", Everyone),
-        new("Employees", "View department employees", Managers),
-        new("Employees", "Create, edit and deactivate employees", Admins),
-        new("Employees", "View salary information (others)", Admins),
-        new("Departments & Positions", "Manage departments and positions", Admins),
-        new("Projects", "View own projects", Everyone),
-        new("Projects", "View department projects and budgets", Managers),
-        new("Projects", "Create, archive and fully edit projects", Admins),
-        new("Tasks", "View and update own tasks", Everyone),
-        new("Tasks", "Create and assign department tasks", Managers),
-        new("Leave", "Submit and cancel own leave requests", Everyone),
-        new("Leave", "Approve or reject department leave", Managers),
-        new("Leave", "Adjust leave balances", Admins),
-        new("Expenses", "Submit own expenses", Everyone),
-        new("Expenses", "Approve or reject department expenses", Managers),
-        new("Expenses", "Mark expenses as paid", Admins),
-        new("Content", "Read announcements and permitted documents", Everyone),
-        new("Content", "Publish announcements and upload documents", Admins),
-        new("Reports", "Department reports", Managers),
-        new("Reports", "Company-wide reports", Admins),
-        new("Administration", "Manage users (non-administrators)", Admins),
-        new("Administration", "Manage administrators and assign admin roles", SuperAdmins),
-        new("Administration", "View business audit logs", Admins),
-        new("Administration", "View security audit logs", SuperAdmins),
-        new("Settings", "Edit general company settings", Admins),
-        new("Settings", "Edit leave, file and security settings", SuperAdmins),
+        ("Profile", "profile.own", Everyone),
+        ("Employees", "employees.viewDepartment", Managers),
+        ("Employees", "employees.manage", Admins),
+        ("Employees", "employees.salary", Admins),
+        ("DepartmentsPositions", "organization.manage", Admins),
+        ("Projects", "projects.own", Everyone),
+        ("Projects", "projects.department", Managers),
+        ("Projects", "projects.manage", Admins),
+        ("Tasks", "tasks.own", Everyone),
+        ("Tasks", "tasks.department", Managers),
+        ("Leave", "leave.own", Everyone),
+        ("Leave", "leave.decide", Managers),
+        ("Leave", "leave.balances", Admins),
+        ("Expenses", "expenses.own", Everyone),
+        ("Expenses", "expenses.decide", Managers),
+        ("Expenses", "expenses.pay", Admins),
+        ("Content", "content.read", Everyone),
+        ("Content", "content.publish", Admins),
+        ("Reports", "reports.department", Managers),
+        ("Reports", "reports.company", Admins),
+        ("Administration", "admin.users", Admins),
+        ("Administration", "admin.admins", SuperAdmins),
+        ("Administration", "admin.businessAudit", Admins),
+        ("Administration", "admin.securityAudit", SuperAdmins),
+        ("Settings", "settings.general", Admins),
+        ("Settings", "settings.advanced", SuperAdmins),
     ];
+
+    /// <summary>The matrix in the language of the current request.</summary>
+    public static IReadOnlyList<PermissionDto> All() =>
+        Entries.Select(e => new PermissionDto(
+                Text.Get($"permission.area.{e.Area}"),
+                Text.Get($"permission.{e.Permission}"),
+                e.Roles))
+            .ToList();
 }

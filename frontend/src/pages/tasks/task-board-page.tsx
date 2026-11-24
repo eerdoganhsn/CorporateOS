@@ -1,6 +1,7 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Calendar, MessageSquare } from 'lucide-react'
 import { useState, type DragEvent } from 'react'
+import { useTranslation } from 'react-i18next'
 import { Link } from 'react-router'
 import { toast } from 'sonner'
 import { getErrorMessage } from '@/api/client'
@@ -19,7 +20,8 @@ import { usePermissions } from '@/store/auth-store'
 import type { TaskStatus } from '@/types/enums'
 import type { TaskBoardColumn, TaskListItem } from '@/types/models'
 import { cn } from '@/utils/cn'
-import { formatDate, humanize } from '@/utils/format'
+import { enumLabel } from '@/i18n/enum-label'
+import { formatDate } from '@/utils/format'
 
 const COLUMN_ACCENT: Record<TaskStatus, string> = {
   Todo: 'bg-zinc-400',
@@ -30,6 +32,7 @@ const COLUMN_ACCENT: Record<TaskStatus, string> = {
 }
 
 export default function TaskBoardPage() {
+  const { t } = useTranslation()
   const queryClient = useQueryClient()
   const { isManagerOrAbove } = usePermissions()
   const [createOpen, setCreateOpen] = useState(false)
@@ -55,7 +58,7 @@ export default function TaskBoardPage() {
     )
     try {
       await tasksApi.updateStatus(task.id, { status })
-      toast.success(`Moved to ${humanize(status)}.`)
+      toast.success(t('tasks.board.moved', { status: enumLabel('TaskStatus', status) }))
       void queryClient.invalidateQueries({ queryKey: ['tasks'] })
       void queryClient.invalidateQueries({ queryKey: ['dashboard'] })
     } catch (err) {
@@ -75,8 +78,8 @@ export default function TaskBoardPage() {
   return (
     <>
       <PageHeader
-        title="Task board"
-        description="Drag cards between columns to update their status."
+        title={t('tasks.board.title')}
+        description={t('tasks.board.description')}
         actions={<TaskViewSwitcher onCreate={isManagerOrAbove ? () => setCreateOpen(true) : undefined} />}
       />
       <Card className="mb-4">
@@ -94,7 +97,7 @@ export default function TaskBoardPage() {
           {(data ?? EMPTY_COLUMNS).map((column) => (
             <section
               key={column.status}
-              aria-label={`${humanize(column.status)} column`}
+              aria-label={t('tasks.board.column', { status: enumLabel('TaskStatus', column.status) })}
               onDragOver={(e) => {
                 e.preventDefault()
                 setDragOver(column.status)
@@ -106,7 +109,7 @@ export default function TaskBoardPage() {
               <header className="flex items-center justify-between px-3 py-2.5">
                 <h2 className="flex items-center gap-2 text-sm font-semibold">
                   <span className={cn('size-2 rounded-full', COLUMN_ACCENT[column.status])} />
-                  {humanize(column.status)}
+                  {enumLabel('TaskStatus', column.status)}
                 </h2>
                 <span className="rounded-full bg-background px-2 text-xs text-muted-foreground tabular-nums">{column.items.length}</span>
               </header>
@@ -115,7 +118,7 @@ export default function TaskBoardPage() {
                 {column.items.map((task) => (
                   <TaskCard key={task.id} task={task} />
                 ))}
-                {!isLoading && column.items.length === 0 && <p className="py-6 text-center text-xs text-muted-foreground">Drop tasks here</p>}
+                {!isLoading && column.items.length === 0 && <p className="py-6 text-center text-xs text-muted-foreground">{t('tasks.board.dropHere')}</p>}
               </div>
             </section>
           ))}
@@ -129,6 +132,7 @@ export default function TaskBoardPage() {
 const EMPTY_COLUMNS: TaskBoardColumn[] = (['Todo', 'InProgress', 'Review', 'Completed', 'Cancelled'] as const).map((status) => ({ status, items: [] }))
 
 function TaskCard({ task }: { task: TaskListItem }) {
+  const { t } = useTranslation()
   return (
     <Link
       to={`/tasks/${task.id}`}
@@ -150,7 +154,7 @@ function TaskCard({ task }: { task: TaskListItem }) {
       <div className="mt-3 flex items-center justify-between text-xs text-muted-foreground">
         <span className={cn('flex items-center gap-1', task.isOverdue && 'font-medium text-red-600')}>
           <Calendar className="size-3" />
-          {task.dueDate ? formatDate(task.dueDate) : 'No due date'}
+          {task.dueDate ? formatDate(task.dueDate) : t('tasks.board.noDueDate')}
         </span>
         <span className="flex items-center gap-2">
           {task.commentCount > 0 && (

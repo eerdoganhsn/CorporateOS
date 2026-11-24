@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
 import { Archive, ArchiveRestore, Pencil, Plus } from 'lucide-react'
 import { useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { Link, useParams, useSearchParams } from 'react-router'
 import { projectsApi } from '@/api/endpoints'
 import { ActivityTimeline } from '@/components/common/activity-timeline'
@@ -19,9 +20,10 @@ import { TaskDialog } from '@/features/tasks/task-dialog'
 import { EmbeddedTasksTable } from '@/features/tasks/tasks-table'
 import { useApiMutation } from '@/hooks/use-api-mutation'
 import { usePermissions } from '@/store/auth-store'
-import { formatCurrency, formatDate } from '@/utils/format'
+import { formatCurrency, formatDate, formatPercent } from '@/utils/format'
 
 export default function ProjectDetailPage() {
+  const { t } = useTranslation()
   const id = Number(useParams().id)
   const { isAdmin } = usePermissions()
   const [params, setParams] = useSearchParams()
@@ -37,7 +39,7 @@ export default function ProjectDetailPage() {
   const archive = useApiMutation({
     mutationFn: () => (p?.isArchived ? projectsApi.unarchive(id) : projectsApi.archive(id)),
     invalidate: [['projects'], ['lookups', 'projects']],
-    successMessage: (r) => (r.isArchived ? 'Project archived.' : 'Project restored.'),
+    successMessage: (r) => (r.isArchived ? t('projects.detail.archivedToast') : t('projects.detail.restoredToast')),
   })
 
   if (isLoading) return <PageSkeleton />
@@ -49,12 +51,12 @@ export default function ProjectDetailPage() {
   return (
     <>
       <PageHeader
-        back={{ to: '/projects', label: 'Projects' }}
+        back={{ to: '/projects', label: t('projects.list.title') }}
         title={
           <span className="flex flex-wrap items-center gap-2">
             {p.name}
-            <StatusBadge status={p.status} />
-            {p.isArchived && <Badge variant="muted">Archived</Badge>}
+            <StatusBadge status={p.status} type="ProjectStatus" />
+            {p.isArchived && <Badge variant="muted">{t('projects.archived')}</Badge>}
           </span>
         }
         description={`${p.projectCode}${p.departmentName ? ` · ${p.departmentName}` : ''}`}
@@ -63,21 +65,21 @@ export default function ProjectDetailPage() {
             {p.canManageTasks && !p.isArchived && (
               <Button onClick={() => setTaskOpen(true)}>
                 <Plus />
-                New task
+                {t('projects.detail.newTask')}
               </Button>
             )}
             {p.canManage && (
               <Button variant="outline" asChild>
                 <Link to={`/projects/${p.id}/edit`}>
                   <Pencil />
-                  Edit
+                  {t('common.actions.edit')}
                 </Link>
               </Button>
             )}
             {isAdmin && (
               <Button variant="outline" onClick={() => setArchiveOpen(true)}>
                 {p.isArchived ? <ArchiveRestore /> : <Archive />}
-                {p.isArchived ? 'Restore' : 'Archive'}
+                {p.isArchived ? t('projects.detail.restore') : t('projects.detail.archive')}
               </Button>
             )}
           </>
@@ -86,34 +88,34 @@ export default function ProjectDetailPage() {
 
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
         <Card className="p-4">
-          <p className="text-xs font-medium tracking-wide text-muted-foreground uppercase">Progress</p>
-          <p className="mt-2 text-2xl font-semibold tabular-nums">{p.progressPercentage}%</p>
+          <p className="text-xs font-medium tracking-wide text-muted-foreground uppercase">{t('projects.detail.progress')}</p>
+          <p className="mt-2 text-2xl font-semibold tabular-nums">{formatPercent(p.progressPercentage)}</p>
           <Progress value={p.progressPercentage} className="mt-2" />
         </Card>
         <Card className="p-4">
-          <p className="text-xs font-medium tracking-wide text-muted-foreground uppercase">Tasks completed</p>
+          <p className="text-xs font-medium tracking-wide text-muted-foreground uppercase">{t('projects.detail.tasksCompleted')}</p>
           <p className="mt-2 text-2xl font-semibold tabular-nums">
             {p.taskStats.completed}
             <span className="text-base font-normal text-muted-foreground"> / {p.taskStats.total}</span>
           </p>
-          <p className="mt-1 text-xs text-muted-foreground">{completion}% completion rate</p>
+          <p className="mt-1 text-xs text-muted-foreground">{t('projects.detail.completionRate', { rate: formatPercent(completion) })}</p>
         </Card>
         <Card className="p-4">
-          <p className="text-xs font-medium tracking-wide text-muted-foreground uppercase">Overdue tasks</p>
+          <p className="text-xs font-medium tracking-wide text-muted-foreground uppercase">{t('projects.detail.overdueTasks')}</p>
           <p className={`mt-2 text-2xl font-semibold tabular-nums ${p.taskStats.overdue ? 'text-red-600' : ''}`}>{p.taskStats.overdue}</p>
           <p className="mt-1 text-xs text-muted-foreground">
-            {p.taskStats.inProgress} in progress · {p.taskStats.review} in review
+            {t('projects.detail.inProgressReview', { inProgress: p.taskStats.inProgress, review: p.taskStats.review })}
           </p>
         </Card>
         <Card className="p-4">
-          <p className="text-xs font-medium tracking-wide text-muted-foreground uppercase">Budget</p>
+          <p className="text-xs font-medium tracking-wide text-muted-foreground uppercase">{t('projects.detail.budget')}</p>
           {p.canViewBudget ? (
             <>
               <p className="mt-2 text-2xl font-semibold tabular-nums">{formatCurrency(p.budget)}</p>
-              <p className="mt-1 text-xs text-muted-foreground">{formatCurrency(p.actualCost)} in project-related expenses</p>
+              <p className="mt-1 text-xs text-muted-foreground">{t('projects.detail.projectExpenses', { amount: formatCurrency(p.actualCost) })}</p>
             </>
           ) : (
-            <p className="mt-2 text-sm text-muted-foreground">Restricted</p>
+            <p className="mt-2 text-sm text-muted-foreground">{t('projects.detail.restricted')}</p>
           )}
         </Card>
       </div>
@@ -121,30 +123,30 @@ export default function ProjectDetailPage() {
       <Card className="mt-6">
         <Tabs value={tab} onValueChange={(v) => setParams({ tab: v }, { replace: true })} className="gap-0">
           <TabsList className="px-3">
-            <TabsTrigger value="overview">Overview</TabsTrigger>
-            <TabsTrigger value="tasks">Tasks ({p.taskStats.total})</TabsTrigger>
-            <TabsTrigger value="members">Members ({p.members.length})</TabsTrigger>
-            <TabsTrigger value="timeline">Timeline</TabsTrigger>
-            <TabsTrigger value="activity">Activity</TabsTrigger>
+            <TabsTrigger value="overview">{t('projects.detail.tabs.overview')}</TabsTrigger>
+            <TabsTrigger value="tasks">{t('projects.detail.tabs.tasks', { count: p.taskStats.total })}</TabsTrigger>
+            <TabsTrigger value="members">{t('projects.detail.tabs.members', { count: p.members.length })}</TabsTrigger>
+            <TabsTrigger value="timeline">{t('projects.detail.tabs.timeline')}</TabsTrigger>
+            <TabsTrigger value="activity">{t('projects.detail.tabs.activity')}</TabsTrigger>
           </TabsList>
           <TabsContent value="overview">
             <div className="grid gap-6 p-5 lg:grid-cols-3">
               <div className="space-y-4 lg:col-span-2">
-                <h3 className="text-sm font-semibold">Description</h3>
-                <p className="text-sm leading-relaxed whitespace-pre-line text-muted-foreground">{p.description || 'No description provided.'}</p>
+                <h3 className="text-sm font-semibold">{t('projects.detail.description')}</h3>
+                <p className="text-sm leading-relaxed whitespace-pre-line text-muted-foreground">{p.description || t('projects.detail.noDescription')}</p>
               </div>
               <dl className="grid gap-4">
-                <DetailItem label="Project manager">
+                <DetailItem label={t('projects.detail.manager')}>
                   {p.projectManager ? <PersonCell name={p.projectManager.fullName} subtitle={p.projectManager.positionTitle} src={p.projectManager.avatarUrl} /> : null}
                 </DetailItem>
-                <DetailItem label="Priority">
+                <DetailItem label={t('projects.detail.priority')}>
                   <PriorityBadge priority={p.priority} />
                 </DetailItem>
-                <DetailItem label="Schedule">
-                  {formatDate(p.startDate)} → {p.endDate ? formatDate(p.endDate) : 'Open-ended'}
+                <DetailItem label={t('projects.detail.schedule')}>
+                  {formatDate(p.startDate)} → {p.endDate ? formatDate(p.endDate) : t('projects.detail.openEnded')}
                 </DetailItem>
-                <DetailItem label="Department">{p.departmentName ?? 'Cross-department'}</DetailItem>
-                <DetailItem label="Last updated">{formatDate(p.updatedAt ?? p.createdAt)}</DetailItem>
+                <DetailItem label={t('projects.detail.department')}>{p.departmentName ?? t('projects.detail.crossDepartment')}</DetailItem>
+                <DetailItem label={t('projects.detail.lastUpdated')}>{formatDate(p.updatedAt ?? p.createdAt)}</DetailItem>
               </dl>
             </div>
           </TabsContent>
@@ -167,9 +169,9 @@ export default function ProjectDetailPage() {
       <ConfirmDialog
         open={archiveOpen}
         onOpenChange={setArchiveOpen}
-        title={p.isArchived ? `Restore ${p.name}?` : `Archive ${p.name}?`}
-        description={p.isArchived ? 'The project will reappear in active lists.' : 'Archived projects are hidden from lists and no new tasks can be added. History is kept.'}
-        confirmLabel={p.isArchived ? 'Restore' : 'Archive'}
+        title={p.isArchived ? t('projects.detail.confirmRestoreTitle', { name: p.name }) : t('projects.detail.confirmArchiveTitle', { name: p.name })}
+        description={p.isArchived ? t('projects.detail.confirmRestoreBody') : t('projects.detail.confirmArchiveBody')}
+        confirmLabel={p.isArchived ? t('projects.detail.restore') : t('projects.detail.archive')}
         onConfirm={() => archive.mutateAsync()}
       />
     </>

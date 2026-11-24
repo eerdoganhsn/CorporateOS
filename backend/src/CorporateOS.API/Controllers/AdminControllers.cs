@@ -7,6 +7,7 @@ using CorporateOS.Application.Features.Settings;
 using CorporateOS.Application.Features.Users;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using CorporateOS.Domain.Localization;
 
 namespace CorporateOS.API.Controllers;
 
@@ -43,7 +44,7 @@ public sealed class AdminUsersController(IUserAdminService users) : ApiControlle
     public async Task<ActionResult<ApiResponse<object>>> ResetPassword(Guid id, AdminResetPasswordRequest request, CancellationToken ct)
     {
         await users.ResetPasswordAsync(id, request, ct);
-        return OkMessage("Password reset. The user's active sessions were signed out.");
+        return OkMessage(Text.Get("success.passwordResetByAdmin"));
     }
 
     /// <summary>Replaces the user's roles. Granting or revoking Admin/SuperAdmin requires SuperAdmin.</summary>
@@ -99,14 +100,14 @@ public sealed class AdminSettingsController(ISettingsAdminService settings) : Ap
     /// <summary>Updates settings. Leave, file and security settings require SuperAdmin.</summary>
     [HttpPut]
     public async Task<ActionResult<ApiResponse<IReadOnlyList<SettingDto>>>> Update(UpdateSettingsRequest request, CancellationToken ct) =>
-        OkResponse(await settings.UpdateAsync(request, ct), "Settings saved.");
+        OkResponse(await settings.UpdateAsync(request, ct), Text.Get("success.settingsSaved"));
 
     [HttpPost("logo")]
     [RequestSizeLimit(3 * 1024 * 1024)]
     public async Task<ActionResult<ApiResponse<object>>> UploadLogo(IFormFile file, CancellationToken ct)
     {
         await settings.UploadLogoAsync(ToUpload(file), ct);
-        return OkMessage("Logo updated.");
+        return OkMessage(Text.Get("success.logoUpdated"));
     }
 }
 

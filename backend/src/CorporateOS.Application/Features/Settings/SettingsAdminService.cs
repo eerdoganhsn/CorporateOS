@@ -80,7 +80,8 @@ public sealed class SettingsAdminService(
             .Select(d =>
             {
                 stored.TryGetValue(d.Key, out var row);
-                return new SettingDto(d.Key, row?.Value ?? d.DefaultValue, d.Category, d.DataType, d.Label, d.Description,
+                return new SettingDto(d.Key, row?.Value ?? d.DefaultValue, d.Category, d.DataType,
+                    Text.Get($"setting.{d.Key}.label"), Text.Get($"setting.{d.Key}.description"),
                     d.IsAdvanced, scope.IsSuperAdmin || !d.IsAdvanced, d.MinValue, d.MaxValue, row?.UpdatedAt);
             })
             .ToList();

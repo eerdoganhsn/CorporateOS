@@ -222,12 +222,10 @@ public sealed class DocumentService(
             _ => []
         };
 
-        foreach (var userId in audience.Where(u => u != uploaderId))
-        {
-            notifications.Notify(userId, "New document shared with you",
-                $"{document.Name} ({document.Category}) is now available in Documents.",
-                NotificationType.DocumentShared, nameof(Document), document.Id.ToString());
-        }
+        await notifications.NotifyUsersAsync(audience.Where(u => u != uploaderId),
+            LocalizedText.Of("notify.documentShared.title"),
+            LocalizedText.Of("notify.documentShared.message", document.Name, document.Category),
+            NotificationType.DocumentShared, nameof(Document), document.Id.ToString(), cancellationToken);
     }
 
     private async Task ValidateDepartmentAsync(DocumentMetadataRequest request, CancellationToken cancellationToken)

@@ -3,22 +3,25 @@ import { PriorityBadge, StatusBadge } from '@/components/common/badges'
 import type { Column } from '@/components/common/data-table'
 import { PersonCell } from '@/components/common/user-avatar'
 import { Progress } from '@/components/ui/display'
+import i18n from '@/i18n'
 import type { TaskListItem } from '@/types/models'
 import { cn } from '@/utils/cn'
-import { formatDate } from '@/utils/format'
+import { formatDate, formatPercent } from '@/utils/format'
 
+/** Called while rendering, so labels follow the current language. */
 export function taskColumns({ hideProject }: { hideProject?: boolean } = {}): Column<TaskListItem>[] {
+  const t = i18n.t
   return [
     {
       key: 'title',
-      header: 'Task',
+      header: t('tasks.columns.task'),
       sortKey: 'title',
-      cell: (t) => (
+      cell: (task) => (
         <div className="min-w-0">
-          <p className="truncate font-medium">{t.title}</p>
+          <p className="truncate font-medium">{task.title}</p>
           {!hideProject && (
             <p className="truncate text-xs text-muted-foreground">
-              {t.projectCode} · {t.projectName}
+              {task.projectCode} · {task.projectName}
             </p>
           )}
         </div>
@@ -26,39 +29,39 @@ export function taskColumns({ hideProject }: { hideProject?: boolean } = {}): Co
     },
     {
       key: 'assignee',
-      header: 'Assignee',
+      header: t('tasks.columns.assignee'),
       sortKey: 'assignee',
-      cell: (t) =>
-        t.assignedToName ? <PersonCell name={t.assignedToName} src={t.assignedToAvatarUrl} /> : <span className="text-muted-foreground">Unassigned</span>,
+      cell: (task) =>
+        task.assignedToName ? <PersonCell name={task.assignedToName} src={task.assignedToAvatarUrl} /> : <span className="text-muted-foreground">{t('common.unassigned')}</span>,
     },
-    { key: 'status', header: 'Status', sortKey: 'status', cell: (t) => <StatusBadge status={t.status} /> },
-    { key: 'priority', header: 'Priority', sortKey: 'priority', cell: (t) => <PriorityBadge priority={t.priority} /> },
+    { key: 'status', header: t('tasks.columns.status'), sortKey: 'status', cell: (task) => <StatusBadge status={task.status} type="TaskStatus" /> },
+    { key: 'priority', header: t('tasks.columns.priority'), sortKey: 'priority', cell: (task) => <PriorityBadge priority={task.priority} /> },
     {
       key: 'due',
-      header: 'Due',
+      header: t('tasks.columns.due'),
       sortKey: 'dueDate',
       className: 'whitespace-nowrap',
-      cell: (t) => <span className={cn(t.isOverdue && 'font-medium text-red-600')}>{formatDate(t.dueDate)}</span>,
+      cell: (task) => <span className={cn(task.isOverdue && 'font-medium text-red-600')}>{formatDate(task.dueDate)}</span>,
     },
     {
       key: 'progress',
-      header: 'Progress',
+      header: t('tasks.columns.progress'),
       sortKey: 'progress',
-      cell: (t) => (
+      cell: (task) => (
         <div className="flex w-28 items-center gap-2">
-          <Progress value={t.progressPercentage} />
-          <span className="w-8 text-right text-xs text-muted-foreground tabular-nums">{t.progressPercentage}%</span>
+          <Progress value={task.progressPercentage} />
+          <span className="w-8 text-right text-xs text-muted-foreground tabular-nums">{formatPercent(task.progressPercentage)}</span>
         </div>
       ),
     },
     {
       key: 'comments',
       header: '',
-      cell: (t) =>
-        t.commentCount > 0 ? (
+      cell: (task) =>
+        task.commentCount > 0 ? (
           <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
             <MessageSquare className="size-3" />
-            {t.commentCount}
+            {task.commentCount}
           </span>
         ) : null,
     },

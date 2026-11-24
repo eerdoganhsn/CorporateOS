@@ -1,4 +1,5 @@
 import { del, downloadFile, get, patch, post, put, upload } from './client'
+import type { Language } from '@/i18n/languages'
 import type { ActivityItem, PagedQuery, PagedResult } from '@/types/api'
 import type {
   AnnouncementPriority,
@@ -79,6 +80,7 @@ export const profileApi = {
   update: (body: { phone?: string; address?: string; emergencyContactName?: string; emergencyContactPhone?: string }) =>
     put<Profile>('/profile', body),
   uploadAvatar: (file: File) => upload<string>('/profile/avatar', file),
+  updateLanguage: (language: Language) => put<AuthUser>('/profile/language', { language }),
 }
 
 /* ------------------------------- Organization ------------------------------ */

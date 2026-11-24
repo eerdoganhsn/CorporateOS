@@ -1,5 +1,6 @@
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useForm, useWatch } from 'react-hook-form'
+import { useTranslation } from 'react-i18next'
 import { Link } from 'react-router'
 import { z } from 'zod'
 import type { EmployeePayload } from '@/api/endpoints'
@@ -13,7 +14,7 @@ import { useDepartmentLookup, useEmployeeLookup, usePositionLookup } from '@/hoo
 import { usePermissions } from '@/store/auth-store'
 import { EMPLOYEE_STATUSES, EMPLOYMENT_TYPES, ROLES, type EmployeeStatus, type EmploymentType, type Role } from '@/types/enums'
 import type { EmployeeDetail } from '@/types/models'
-import { humanize } from '@/utils/format'
+import { enumLabel } from '@/i18n/enum-label'
 import { optionalAmount, requiredId, toNullable, toOptionalNumber } from '@/utils/form'
 import { applyServerErrors } from '@/utils/server-errors'
 
@@ -21,19 +22,19 @@ const today = new Date().toISOString().slice(0, 10)
 
 const schema = z
   .object({
-    employeeNumber: z.string().trim().min(1, 'Employee number is required.').max(20).regex(/^[A-Za-z0-9-]+$/, 'Use letters, digits and hyphens only.'),
-    firstName: z.string().trim().min(1, 'First name is required.').max(100),
-    lastName: z.string().trim().min(1, 'Last name is required.').max(100),
-    email: z.string().trim().min(1, 'Email is required.').email('Enter a valid email address.'),
-    phone: z.string().trim().max(30).regex(/^[0-9+()\-\s.]*$/, 'Phone contains invalid characters.'),
-    departmentId: requiredId('Department is required.'),
-    positionId: requiredId('Position is required.'),
+    employeeNumber: z.string().trim().min(1, 'employees.validation.employeeNumberRequired').max(20).regex(/^[A-Za-z0-9-]+$/, 'employees.validation.employeeNumberFormat'),
+    firstName: z.string().trim().min(1, 'employees.validation.firstNameRequired').max(100),
+    lastName: z.string().trim().min(1, 'employees.validation.lastNameRequired').max(100),
+    email: z.string().trim().min(1, 'account.validation.emailRequired').email('common.validation.email'),
+    phone: z.string().trim().max(30).regex(/^[0-9+()\-\s.]*$/, 'account.validation.phoneInvalid'),
+    departmentId: requiredId('employees.validation.departmentRequired'),
+    positionId: requiredId('employees.validation.positionRequired'),
     managerId: z.string(),
-    hireDate: z.string().min(1, 'Hire date is required.'),
+    hireDate: z.string().min(1, 'employees.validation.hireDateRequired'),
     employmentType: z.enum(EMPLOYMENT_TYPES),
     status: z.enum(EMPLOYEE_STATUSES),
-    birthDate: z.string().refine((v) => v === '' || v < today, 'Birth date must be in the past.'),
-    salary: optionalAmount('Enter a valid salary.'),
+    birthDate: z.string().refine((v) => v === '' || v < today, 'employees.validation.birthDatePast'),
+    salary: optionalAmount('employees.validation.salaryInvalid'),
     address: z.string().max(500),
     emergencyContactName: z.string().max(150),
     emergencyContactPhone: z.string().max(30),
@@ -43,7 +44,7 @@ const schema = z
   })
   .superRefine((v, ctx) => {
     if (!v.createUserAccount) return
-    if (!v.role) ctx.addIssue({ code: 'custom', path: ['role'], message: 'Select a role.' })
+    if (!v.role) ctx.addIssue({ code: 'custom', path: ['role'], message: 'employees.validation.roleRequired' })
     const pw = passwordSchema.safeParse(v.temporaryPassword)
     if (!pw.success) ctx.addIssue({ code: 'custom', path: ['temporaryPassword'], message: pw.error.issues[0].message })
   })
@@ -59,6 +60,7 @@ interface EmployeeFormProps {
 }
 
 export function EmployeeForm({ employee, onSubmit, cancelTo }: EmployeeFormProps) {
+  const { t } = useTranslation()
   const isEdit = !!employee
   const { isSuperAdmin } = usePermissions()
   const {
@@ -140,38 +142,38 @@ export function EmployeeForm({ employee, onSubmit, cancelTo }: EmployeeFormProps
     <form onSubmit={handleSubmit(submit)} noValidate>
       <Card>
         <CardContent>
-          <FormSection title="Personal details" description="Name and contact information.">
-            <FormField label="First name" htmlFor="firstName" error={err('firstName')} required>
+          <FormSection title={t('employees.form.personal')} description={t('employees.form.personalHint')}>
+            <FormField label={t('employees.form.firstName')} htmlFor="firstName" error={err('firstName')} required>
               <Input id="firstName" aria-invalid={!!err('firstName')} {...register('firstName')} />
             </FormField>
-            <FormField label="Last name" htmlFor="lastName" error={err('lastName')} required>
+            <FormField label={t('employees.form.lastName')} htmlFor="lastName" error={err('lastName')} required>
               <Input id="lastName" aria-invalid={!!err('lastName')} {...register('lastName')} />
             </FormField>
-            <FormField label="Work email" htmlFor="email" error={err('email')} required hint={isEdit ? 'Also updates the sign-in email.' : undefined}>
+            <FormField label={t('employees.form.email')} htmlFor="email" error={err('email')} required hint={isEdit ? t('employees.form.emailHint') : undefined}>
               <Input id="email" type="email" aria-invalid={!!err('email')} {...register('email')} />
             </FormField>
-            <FormField label="Phone" htmlFor="phone" error={err('phone')}>
+            <FormField label={t('employees.form.phone')} htmlFor="phone" error={err('phone')}>
               <Input id="phone" type="tel" {...register('phone')} />
             </FormField>
-            <FormField label="Birth date" htmlFor="birthDate" error={err('birthDate')}>
+            <FormField label={t('employees.form.birthDate')} htmlFor="birthDate" error={err('birthDate')}>
               <Input id="birthDate" type="date" max={today} {...register('birthDate')} />
             </FormField>
           </FormSection>
 
-          <FormSection title="Employment" description="Organizational assignment and contract.">
-            <FormField label="Employee number" htmlFor="employeeNumber" error={err('employeeNumber')} required>
+          <FormSection title={t('employees.form.employment')} description={t('employees.form.employmentHint')}>
+            <FormField label={t('employees.form.employeeNumber')} htmlFor="employeeNumber" error={err('employeeNumber')} required>
               <Input id="employeeNumber" placeholder="EMP-0026" aria-invalid={!!err('employeeNumber')} {...register('employeeNumber')} />
             </FormField>
-            <FormField label="Hire date" htmlFor="hireDate" error={err('hireDate')} required>
+            <FormField label={t('employees.form.hireDate')} htmlFor="hireDate" error={err('hireDate')} required>
               <Input id="hireDate" type="date" {...register('hireDate')} />
             </FormField>
-            <FormField label="Department" htmlFor="departmentId" error={err('departmentId')} required>
+            <FormField label={t('employees.form.department')} htmlFor="departmentId" error={err('departmentId')} required>
               <NativeSelect
                 id="departmentId"
                 aria-invalid={!!err('departmentId')}
                 {...register('departmentId', { onChange: () => setValue('positionId', '') })}
               >
-                <option value="">Select department…</option>
+                <option value="">{t('employees.form.selectDepartment')}</option>
                 {departments.data?.map((d) => (
                   <option key={d.id} value={d.id}>
                     {d.name}
@@ -179,9 +181,9 @@ export function EmployeeForm({ employee, onSubmit, cancelTo }: EmployeeFormProps
                 ))}
               </NativeSelect>
             </FormField>
-            <FormField label="Position" htmlFor="positionId" error={err('positionId')} required>
+            <FormField label={t('employees.form.position')} htmlFor="positionId" error={err('positionId')} required>
               <NativeSelect id="positionId" aria-invalid={!!err('positionId')} {...register('positionId')}>
-                <option value="">Select position…</option>
+                <option value="">{t('employees.form.selectPosition')}</option>
                 {positions.data?.map((p) => (
                   <option key={p.id} value={p.id}>
                     {p.name}
@@ -189,9 +191,9 @@ export function EmployeeForm({ employee, onSubmit, cancelTo }: EmployeeFormProps
                 ))}
               </NativeSelect>
             </FormField>
-            <FormField label="Manager" htmlFor="managerId">
+            <FormField label={t('employees.form.manager')} htmlFor="managerId">
               <NativeSelect id="managerId" {...register('managerId')}>
-                <option value="">No manager</option>
+                <option value="">{t('employees.form.noManager')}</option>
                 {managers.data
                   ?.filter((m) => m.id !== employee?.id)
                   .map((m) => (
@@ -201,67 +203,67 @@ export function EmployeeForm({ employee, onSubmit, cancelTo }: EmployeeFormProps
                   ))}
               </NativeSelect>
             </FormField>
-            <FormField label="Employment type" htmlFor="employmentType">
+            <FormField label={t('employees.form.employmentType')} htmlFor="employmentType">
               <NativeSelect id="employmentType" {...register('employmentType')}>
-                {EMPLOYMENT_TYPES.map((t) => (
-                  <option key={t} value={t}>
-                    {humanize(t)}
+                {EMPLOYMENT_TYPES.map((type) => (
+                  <option key={type} value={type}>
+                    {enumLabel('EmploymentType', type)}
                   </option>
                 ))}
               </NativeSelect>
             </FormField>
-            <FormField label="Status" htmlFor="status" hint="Inactive and terminated employees cannot sign in.">
+            <FormField label={t('employees.form.status')} htmlFor="status" hint={t('employees.form.statusHint')}>
               <NativeSelect id="status" {...register('status')}>
                 {EMPLOYEE_STATUSES.map((s) => (
                   <option key={s} value={s}>
-                    {humanize(s)}
+                    {enumLabel('EmployeeStatus', s)}
                   </option>
                 ))}
               </NativeSelect>
             </FormField>
-            <FormField label="Annual salary (USD)" htmlFor="salary" error={err('salary')} hint="Visible only to administrators and the employee.">
-              <Input id="salary" inputMode="decimal" placeholder="e.g. 85000" {...register('salary')} />
+            <FormField label={t('employees.form.salary')} htmlFor="salary" error={err('salary')} hint={t('employees.form.salaryHint')}>
+              <Input id="salary" inputMode="decimal" placeholder={t('employees.form.salaryPlaceholder')} {...register('salary')} />
             </FormField>
           </FormSection>
 
-          <FormSection title="Address & emergency contact">
-            <FormField label="Address" htmlFor="address" className="sm:col-span-2">
+          <FormSection title={t('employees.form.addressSection')}>
+            <FormField label={t('employees.form.address')} htmlFor="address" className="sm:col-span-2">
               <Textarea id="address" rows={2} {...register('address')} />
             </FormField>
-            <FormField label="Emergency contact name" htmlFor="emergencyContactName">
+            <FormField label={t('employees.form.emergencyName')} htmlFor="emergencyContactName">
               <Input id="emergencyContactName" {...register('emergencyContactName')} />
             </FormField>
-            <FormField label="Emergency contact phone" htmlFor="emergencyContactPhone">
+            <FormField label={t('employees.form.emergencyPhone')} htmlFor="emergencyContactPhone">
               <Input id="emergencyContactPhone" type="tel" {...register('emergencyContactPhone')} />
             </FormField>
           </FormSection>
 
           {!isEdit && (
-            <FormSection title="Sign-in account" description="Create a CorporateOS login linked to this employee.">
+            <FormSection title={t('employees.form.accountSection')} description={t('employees.form.accountHint')}>
               <div className="flex items-center gap-2 sm:col-span-2">
                 <Checkbox
                   id="createUserAccount"
                   checked={createAccount}
                   onCheckedChange={(checked) => setValue('createUserAccount', checked === true)}
                 />
-                <Label htmlFor="createUserAccount">Create a user account</Label>
+                <Label htmlFor="createUserAccount">{t('employees.form.createAccount')}</Label>
               </div>
               {createAccount && (
                 <>
-                  <FormField label="Role" htmlFor="role" error={err('role')} required>
+                  <FormField label={t('employees.form.role')} htmlFor="role" error={err('role')} required>
                     <NativeSelect id="role" {...register('role')}>
                       {assignableRoles.map((r) => (
                         <option key={r} value={r}>
-                          {humanize(r)}
+                          {enumLabel('Role', r)}
                         </option>
                       ))}
                     </NativeSelect>
                   </FormField>
                   <FormField
-                    label="Temporary password"
+                    label={t('employees.form.temporaryPassword')}
                     htmlFor="temporaryPassword"
                     error={err('temporaryPassword')}
-                    hint="Share securely; the employee should change it after first sign-in."
+                    hint={t('employees.form.temporaryPasswordHint')}
                     required
                   >
                     <Input id="temporaryPassword" type="password" autoComplete="new-password" {...register('temporaryPassword')} />
@@ -273,11 +275,11 @@ export function EmployeeForm({ employee, onSubmit, cancelTo }: EmployeeFormProps
         </CardContent>
         <CardFooter className="justify-end gap-2">
           <Button variant="outline" asChild>
-            <Link to={cancelTo}>Cancel</Link>
+            <Link to={cancelTo}>{t('common.actions.cancel')}</Link>
           </Button>
           <Button type="submit" disabled={isSubmitting}>
             {isSubmitting && <Spinner />}
-            {isEdit ? 'Save changes' : 'Create employee'}
+            {isEdit ? t('common.actions.saveChanges') : t('employees.form.create')}
           </Button>
         </CardFooter>
       </Card>

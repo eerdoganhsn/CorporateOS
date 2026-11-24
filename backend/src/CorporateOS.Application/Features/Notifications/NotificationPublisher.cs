@@ -1,30 +1,59 @@
 using CorporateOS.Application.Common.Interfaces;
 using CorporateOS.Domain.Entities;
 using CorporateOS.Domain.Enums;
+using CorporateOS.Domain.Localization;
 using Microsoft.EntityFrameworkCore;
 
 namespace CorporateOS.Application.Features.Notifications;
 
 public sealed class NotificationPublisher(IApplicationDbContext db, TimeProvider clock) : INotificationPublisher
 {
-    public void Notify(Guid userId, string title, string message, NotificationType type, string? entityType = null, string? entityId = null)
+    public async Task NotifyUsersAsync(
+        IEnumerable<Guid> userIds,
+        LocalizedText title,
+        LocalizedText message,
+        NotificationType type,
+        string? entityType = null,
+        string? entityId = null,
+        CancellationToken cancellationToken = default)
     {
-        db.Notifications.Add(new Notification
+        var ids = userIds.Distinct().ToList();
+        if (ids.Count == 0)
         {
-            UserId = userId,
-            Title = Truncate(title, 200),
-            Message = Truncate(message, 1000),
-            Type = type,
-            RelatedEntityType = entityType,
-            RelatedEntityId = entityId,
-            CreatedAt = clock.GetUtcNow().UtcDateTime
-        });
+            return;
+        }
+
+        var recipients = await db.Users.AsNoTracking()
+            .Where(u => ids.Contains(u.Id))
+            .Select(u => new { u.Id, u.PreferredLanguage })
+            .ToListAsync(cancellationToken);
+
+        var now = clock.GetUtcNow().UtcDateTime;
+        foreach (var group in recipients.GroupBy(r => Languages.Normalize(r.PreferredLanguage)))
+        {
+            // Render once per language, not once per recipient.
+            var renderedTitle = Truncate(title.Render(group.Key), 200);
+            var renderedMessage = Truncate(message.Render(group.Key), 1000);
+            foreach (var recipient in group)
+            {
+                db.Notifications.Add(new Notification
+                {
+                    UserId = recipient.Id,
+                    Title = renderedTitle,
+                    Message = renderedMessage,
+                    Type = type,
+                    RelatedEntityType = entityType,
+                    RelatedEntityId = entityId,
+                    CreatedAt = now
+                });
+            }
+        }
     }
 
     public async Task NotifyEmployeesAsync(
         IEnumerable<int> employeeIds,
-        string title,
-        string message,
+        LocalizedText title,
+        LocalizedText message,
         NotificationType type,
         string? entityType = null,
         string? entityId = null,
@@ -41,10 +70,7 @@ public sealed class NotificationPublisher(IApplicationDbContext db, TimeProvider
             .Select(e => e.UserId!.Value)
             .ToListAsync(cancellationToken);
 
-        foreach (var userId in userIds)
-        {
-            Notify(userId, title, message, type, entityType, entityId);
-        }
+        await NotifyUsersAsync(userIds, title, message, type, entityType, entityId, cancellationToken);
     }
 
     private static string Truncate(string value, int max) => value.Length <= max ? value : value[..(max - 1)] + "…";

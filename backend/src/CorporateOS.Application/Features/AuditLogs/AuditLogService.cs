@@ -2,6 +2,7 @@ using CorporateOS.Application.Common.Extensions;
 using CorporateOS.Application.Common.Interfaces;
 using CorporateOS.Application.Common.Models;
 using CorporateOS.Domain.Entities;
+using CorporateOS.Domain.Localization;
 using Microsoft.EntityFrameworkCore;
 
 namespace CorporateOS.Application.Features.AuditLogs;
@@ -63,8 +64,8 @@ public sealed class AuditLogService(IApplicationDbContext db, ICurrentUserServic
     {
         var rows = await Project(await FilterAsync(query, cancellationToken)).Take(ExportLimit).ToListAsync(cancellationToken);
         return new ReportTable(
-            "Audit Log",
-            ["Timestamp (UTC)", "User", "Email", "Action", "Entity", "Entity ID", "IP Address", "Old Values", "New Values"],
+            Text.Get("audit.export.title"),
+            [.. new[] { "timestamp", "user", "email", "action", "entity", "entityId", "ip", "oldValues", "newValues" }.Select(c => Text.Get($"audit.col.{c}"))],
             rows.Select(r => (IReadOnlyList<object?>)[r.CreatedAt, r.UserName, r.UserEmail, r.Action, r.EntityName, r.EntityId, r.IpAddress, r.OldValues, r.NewValues]).ToList());
     }
 

@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
 import { Megaphone, MoreHorizontal, Pencil, Pin, PinOff, Plus, Trash2, Users } from 'lucide-react'
 import { useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { Link } from 'react-router'
 import { announcementsApi } from '@/api/endpoints'
 import { PriorityBadge, StatusBadge } from '@/components/common/badges'
@@ -19,9 +20,11 @@ import { usePermissions } from '@/store/auth-store'
 import { ANNOUNCEMENT_PRIORITIES, type AnnouncementPriority } from '@/types/enums'
 import type { Announcement } from '@/types/models'
 import { cn } from '@/utils/cn'
-import { formatDateTime, formatRelative, humanize } from '@/utils/format'
+import { enumLabel } from '@/i18n/enum-label'
+import { formatDateTime, formatRelative } from '@/utils/format'
 
 export default function AnnouncementsPage() {
+  const { t } = useTranslation()
   const { isAdmin } = usePermissions()
   const table = useTableState(['priority', 'includeInactive'] as const, { pageSize: 10 })
   const [editing, setEditing] = useState<Announcement | undefined>()
@@ -45,15 +48,15 @@ export default function AnnouncementsPage() {
   const pin = useApiMutation({
     mutationFn: (a: Announcement) => announcementsApi.pin(a.id, !a.isPinned),
     invalidate,
-    successMessage: (a) => (a.isPinned ? 'Pinned.' : 'Unpinned.'),
+    successMessage: (a) => (a.isPinned ? t('content.announcements.pinnedToast') : t('content.announcements.unpinnedToast')),
   })
-  const remove = useApiMutation({ mutationFn: (id: number) => announcementsApi.remove(id), invalidate, successMessage: 'Announcement deleted.' })
+  const remove = useApiMutation({ mutationFn: (id: number) => announcementsApi.remove(id), invalidate, successMessage: t('content.announcements.deleted') })
 
   return (
     <>
       <PageHeader
-        title="Announcements"
-        description="Company news, policy updates and team notices."
+        title={t('content.announcements.title')}
+        description={t('content.announcements.description')}
         actions={
           isAdmin && (
             <Button
@@ -63,15 +66,21 @@ export default function AnnouncementsPage() {
               }}
             >
               <Plus />
-              New Announcement
+              {t('content.announcements.add')}
             </Button>
           )
         }
       />
 
       <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center">
-        <SearchInput value={table.search} onChange={table.setSearch} placeholder="Search announcements…" />
-        <FilterSelect label="All priorities" value={table.filters.priority} onChange={(v) => table.setFilter('priority', v)} options={ANNOUNCEMENT_PRIORITIES} />
+        <SearchInput value={table.search} onChange={table.setSearch} placeholder={t('content.announcements.search')} />
+        <FilterSelect
+          label={t('content.announcements.allPriorities')}
+          value={table.filters.priority}
+          onChange={(v) => table.setFilter('priority', v)}
+          options={ANNOUNCEMENT_PRIORITIES}
+          enumType="AnnouncementPriority"
+        />
         {isAdmin && (
           <div className="flex items-center gap-2 px-1">
             <Checkbox
@@ -80,7 +89,7 @@ export default function AnnouncementsPage() {
               onCheckedChange={(c) => table.setFilter('includeInactive', c === true ? 'true' : undefined)}
             />
             <Label htmlFor="includeInactive" className="font-normal">
-              Include scheduled & expired
+              {t('content.announcements.includeInactive')}
             </Label>
           </div>
         )}
@@ -98,7 +107,11 @@ export default function AnnouncementsPage() {
       )}
       {data && data.items.length === 0 && (
         <Card>
-          <EmptyState icon={Megaphone} title="No announcements" description={table.hasActiveFilters ? 'Try different filters.' : 'New company announcements will appear here.'} />
+          <EmptyState
+            icon={Megaphone}
+            title={t('content.announcements.none')}
+            description={table.hasActiveFilters ? t('content.announcements.noneFiltered') : t('content.announcements.noneHint')}
+          />
         </Card>
       )}
 
@@ -110,14 +123,14 @@ export default function AnnouncementsPage() {
                 <div className="mb-1.5 flex flex-wrap items-center gap-2">
                   {a.isPinned && (
                     <span className="flex items-center gap-1 text-xs font-medium text-muted-foreground">
-                      <Pin className="size-3" /> Pinned
+                      <Pin className="size-3" /> {t('content.announcements.pinned')}
                     </span>
                   )}
-                  <PriorityBadge priority={a.priority} />
-                  {a.state !== 'Active' && <StatusBadge status={a.state} />}
+                  <PriorityBadge priority={a.priority} type="AnnouncementPriority" />
+                  {a.state !== 'Active' && <StatusBadge status={a.state} type="AnnouncementState" />}
                   <span className="flex items-center gap-1 text-xs text-muted-foreground">
                     <Users className="size-3" />
-                    {a.targetType === 'SpecificDepartment' ? a.departmentName : humanize(a.targetType)}
+                    {a.targetType === 'SpecificDepartment' ? a.departmentName : enumLabel('AnnouncementTarget', a.targetType)}
                   </span>
                 </div>
                 <Link to={`/announcements/${a.id}`} className="text-base font-semibold hover:underline">
@@ -125,14 +138,15 @@ export default function AnnouncementsPage() {
                 </Link>
                 <p className="mt-1 line-clamp-2 text-sm text-muted-foreground">{a.content}</p>
                 <p className="mt-3 text-xs text-muted-foreground" title={formatDateTime(a.publishDate)}>
-                  {a.createdByName} · {a.state === 'Scheduled' ? `publishes ${formatDateTime(a.publishDate)}` : formatRelative(a.publishDate)}
-                  {a.expireDate && ` · expires ${formatDateTime(a.expireDate)}`}
+                  {a.createdByName} ·{' '}
+                  {a.state === 'Scheduled' ? t('content.announcements.publishes', { date: formatDateTime(a.publishDate) }) : formatRelative(a.publishDate)}
+                  {a.expireDate && t('content.announcements.expires', { date: formatDateTime(a.expireDate) })}
                 </p>
               </div>
               {isAdmin && (
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" size="icon-sm" aria-label="Announcement actions">
+                    <Button variant="ghost" size="icon-sm" aria-label={t('content.announcements.actions')}>
                       <MoreHorizontal />
                     </Button>
                   </DropdownMenuTrigger>
@@ -144,16 +158,16 @@ export default function AnnouncementsPage() {
                       }}
                     >
                       <Pencil />
-                      Edit
+                      {t('common.actions.edit')}
                     </DropdownMenuItem>
                     <DropdownMenuItem onSelect={() => pin.mutate(a)}>
                       {a.isPinned ? <PinOff /> : <Pin />}
-                      {a.isPinned ? 'Unpin' : 'Pin to top'}
+                      {a.isPinned ? t('content.announcements.unpin') : t('content.announcements.pin')}
                     </DropdownMenuItem>
                     <DropdownMenuSeparator />
                     <DropdownMenuItem variant="destructive" onSelect={() => setDeleting(a)}>
                       <Trash2 />
-                      Delete
+                      {t('common.actions.delete')}
                     </DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
@@ -166,14 +180,14 @@ export default function AnnouncementsPage() {
       {data && data.totalPages > 1 && (
         <div className="mt-4 flex items-center justify-between text-sm text-muted-foreground">
           <span>
-            Page {data.page} of {data.totalPages}
+            {t('content.announcements.pageOf', { page: data.page, total: data.totalPages })}
           </span>
           <div className="flex gap-2">
             <Button variant="outline" size="sm" disabled={data.page <= 1} onClick={() => table.setPage(data.page - 1)}>
-              Previous
+              {t('content.announcements.previous')}
             </Button>
             <Button variant="outline" size="sm" disabled={data.page >= data.totalPages} onClick={() => table.setPage(data.page + 1)}>
-              Next
+              {t('content.announcements.next')}
             </Button>
           </div>
         </div>
@@ -183,9 +197,9 @@ export default function AnnouncementsPage() {
       <ConfirmDialog
         open={!!deleting}
         onOpenChange={(open) => !open && setDeleting(null)}
-        title="Delete announcement?"
-        description={`"${deleting?.title}" will be removed for everyone.`}
-        confirmLabel="Delete"
+        title={t('content.announcements.confirmDeleteTitle')}
+        description={t('content.announcements.confirmDeleteBody', { title: deleting?.title })}
+        confirmLabel={t('common.actions.delete')}
         destructive
         onConfirm={() => remove.mutateAsync(deleting!.id)}
       />

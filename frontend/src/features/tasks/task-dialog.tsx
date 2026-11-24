@@ -2,6 +2,7 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { useQueryClient } from '@tanstack/react-query'
 import { useEffect } from 'react'
 import { useForm, useWatch } from 'react-hook-form'
+import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 import { z } from 'zod'
 import { tasksApi } from '@/api/endpoints'
@@ -13,21 +14,25 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { useEmployeeLookup, useProjectLookup } from '@/hooks/use-lookups'
 import { PRIORITIES, TASK_STATUSES } from '@/types/enums'
 import type { TaskDetail } from '@/types/models'
-import { humanize } from '@/utils/format'
+import { enumLabel } from '@/i18n/enum-label'
 import { optionalAmount, toNullable, toOptionalNumber } from '@/utils/form'
 import { applyServerErrors } from '@/utils/server-errors'
 
 const schema = z.object({
-  projectId: z.string().min(1, 'Project is required.'),
-  title: z.string().trim().min(1, 'Title is required.').max(200),
+  projectId: z.string().min(1, 'tasks.validation.projectRequired'),
+  title: z.string().trim().min(1, 'tasks.validation.titleRequired').max(200),
   description: z.string().max(4000),
   assignedToId: z.string(),
   status: z.enum(TASK_STATUSES),
   priority: z.enum(PRIORITIES),
   dueDate: z.string(),
-  estimatedHours: optionalAmount('Enter valid hours.'),
-  actualHours: optionalAmount('Enter valid hours.'),
-  progressPercentage: z.number({ message: 'Enter 0–100.' }).int().min(0, 'Progress must be 0–100.').max(100, 'Progress must be 0–100.'),
+  estimatedHours: optionalAmount('tasks.validation.hoursInvalid'),
+  actualHours: optionalAmount('tasks.validation.hoursInvalid'),
+  progressPercentage: z
+    .number({ message: 'tasks.validation.progressNumber' })
+    .int()
+    .min(0, 'tasks.validation.progressRange')
+    .max(100, 'tasks.validation.progressRange'),
 })
 type FormValues = z.infer<typeof schema>
 
@@ -42,6 +47,7 @@ interface TaskDialogProps {
 }
 
 export function TaskDialog({ open, onOpenChange, task, projectId, onSaved }: TaskDialogProps) {
+  const { t } = useTranslation()
   const queryClient = useQueryClient()
   const projects = useProjectLookup()
   const {
@@ -101,7 +107,7 @@ export function TaskDialog({ open, onOpenChange, task, projectId, onSaved }: Tas
         queryClient.invalidateQueries({ queryKey: ['projects'] }),
         queryClient.invalidateQueries({ queryKey: ['dashboard'] }),
       ])
-      toast.success(task ? 'Task updated.' : 'Task created.')
+      toast.success(task ? t('tasks.dialog.updated') : t('tasks.dialog.created'))
       onOpenChange(false)
       onSaved?.(saved)
     } catch (error) {
@@ -115,16 +121,16 @@ export function TaskDialog({ open, onOpenChange, task, projectId, onSaved }: Tas
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-2xl">
         <DialogHeader>
-          <DialogTitle>{task ? 'Edit task' : 'New task'}</DialogTitle>
+          <DialogTitle>{task ? t('tasks.dialog.edit') : t('tasks.dialog.create')}</DialogTitle>
           <DialogDescription>
-            {task ? `${task.projectCode} · ${task.projectName}` : 'Assignees must belong to your department or the project team.'}
+            {task ? `${task.projectCode} · ${task.projectName}` : t('tasks.dialog.createHint')}
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit(submit)} className="grid gap-4" noValidate>
           <div className="grid gap-4 sm:grid-cols-2">
-            <FormField label="Project" htmlFor="projectId" error={err('projectId')} required>
+            <FormField label={t('tasks.dialog.project')} htmlFor="projectId" error={err('projectId')} required>
               <NativeSelect id="projectId" disabled={!!task || !!projectId} aria-invalid={!!err('projectId')} {...register('projectId')}>
-                <option value="">Select project…</option>
+                <option value="">{t('tasks.dialog.selectProject')}</option>
                 {projects.data?.map((p) => (
                   <option key={p.id} value={p.id}>
                     {p.projectCode} — {p.name}
@@ -132,9 +138,9 @@ export function TaskDialog({ open, onOpenChange, task, projectId, onSaved }: Tas
                 ))}
               </NativeSelect>
             </FormField>
-            <FormField label="Assignee" htmlFor="assignedToId" error={err('assignedToId')}>
+            <FormField label={t('tasks.dialog.assignee')} htmlFor="assignedToId" error={err('assignedToId')}>
               <NativeSelect id="assignedToId" disabled={!selectedProject} {...register('assignedToId')}>
-                <option value="">Unassigned</option>
+                <option value="">{t('common.unassigned')}</option>
                 {assignees.data?.map((e) => (
                   <option key={e.id} value={e.id}>
                     {e.name} — {e.departmentName}
@@ -143,43 +149,43 @@ export function TaskDialog({ open, onOpenChange, task, projectId, onSaved }: Tas
               </NativeSelect>
             </FormField>
           </div>
-          <FormField label="Title" htmlFor="title" error={err('title')} required>
+          <FormField label={t('tasks.dialog.title')} htmlFor="title" error={err('title')} required>
             <Input id="title" aria-invalid={!!err('title')} {...register('title')} />
           </FormField>
-          <FormField label="Description" htmlFor="description" error={err('description')}>
+          <FormField label={t('tasks.dialog.description')} htmlFor="description" error={err('description')}>
             <Textarea id="description" rows={3} {...register('description')} />
           </FormField>
           <div className="grid gap-4 sm:grid-cols-3">
-            <FormField label="Status" htmlFor="status">
+            <FormField label={t('tasks.dialog.status')} htmlFor="status">
               <NativeSelect id="status" {...register('status')}>
                 {TASK_STATUSES.map((s) => (
                   <option key={s} value={s}>
-                    {humanize(s)}
+                    {enumLabel('TaskStatus', s)}
                   </option>
                 ))}
               </NativeSelect>
             </FormField>
-            <FormField label="Priority" htmlFor="priority">
+            <FormField label={t('tasks.dialog.priority')} htmlFor="priority">
               <NativeSelect id="priority" {...register('priority')}>
                 {PRIORITIES.map((p) => (
                   <option key={p} value={p}>
-                    {p}
+                    {enumLabel('Priority', p)}
                   </option>
                 ))}
               </NativeSelect>
             </FormField>
-            <FormField label="Due date" htmlFor="dueDate" error={err('dueDate')}>
+            <FormField label={t('tasks.dialog.dueDate')} htmlFor="dueDate" error={err('dueDate')}>
               <Input id="dueDate" type="date" aria-invalid={!!err('dueDate')} {...register('dueDate')} />
             </FormField>
-            <FormField label="Estimated hours" htmlFor="estimatedHours" error={err('estimatedHours')}>
+            <FormField label={t('tasks.dialog.estimatedHours')} htmlFor="estimatedHours" error={err('estimatedHours')}>
               <Input id="estimatedHours" inputMode="decimal" {...register('estimatedHours')} />
             </FormField>
             {task && (
               <>
-                <FormField label="Actual hours" htmlFor="actualHours" error={err('actualHours')}>
+                <FormField label={t('tasks.dialog.actualHours')} htmlFor="actualHours" error={err('actualHours')}>
                   <Input id="actualHours" inputMode="decimal" {...register('actualHours')} />
                 </FormField>
-                <FormField label="Progress (%)" htmlFor="progressPercentage" error={err('progressPercentage')}>
+                <FormField label={t('tasks.dialog.progress')} htmlFor="progressPercentage" error={err('progressPercentage')}>
                   <Input id="progressPercentage" type="number" min={0} max={100} {...register('progressPercentage', { valueAsNumber: true })} />
                 </FormField>
               </>
@@ -187,11 +193,11 @@ export function TaskDialog({ open, onOpenChange, task, projectId, onSaved }: Tas
           </div>
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
-              Cancel
+              {t('common.actions.cancel')}
             </Button>
             <Button type="submit" disabled={isSubmitting}>
               {isSubmitting && <Spinner />}
-              {task ? 'Save changes' : 'Create task'}
+              {task ? t('common.actions.saveChanges') : t('tasks.dialog.submit')}
             </Button>
           </DialogFooter>
         </form>

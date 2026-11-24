@@ -59,6 +59,7 @@ public static class DependencyInjection
             .AddRoles<ApplicationRole>()
             .AddEntityFrameworkStores<ApplicationDbContext>()
             .AddDefaultTokenProviders()
+            .AddErrorDescriber<LocalizedIdentityErrorDescriber>()
             .AddPasswordValidator<SettingsPasswordValidator>();
         services.Configure<DataProtectionTokenProviderOptions>(o => o.TokenLifespan = TimeSpan.FromHours(2));
 

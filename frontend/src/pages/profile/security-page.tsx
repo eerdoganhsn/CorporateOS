@@ -1,6 +1,7 @@
 import { zodResolver } from '@hookform/resolvers/zod'
 import { KeyRound, ShieldCheck } from 'lucide-react'
 import { useForm } from 'react-hook-form'
+import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 import { z } from 'zod'
 import { authApi } from '@/api/endpoints'
@@ -16,15 +17,16 @@ import { applyServerErrors } from '@/utils/server-errors'
 
 const schema = z
   .object({
-    currentPassword: z.string().min(1, 'Enter your current password.'),
+    currentPassword: z.string().min(1, 'account.validation.currentPasswordRequired'),
     newPassword: passwordSchema,
     confirmPassword: z.string(),
   })
-  .refine((v) => v.newPassword === v.confirmPassword, { path: ['confirmPassword'], message: 'Passwords do not match.' })
-  .refine((v) => v.newPassword !== v.currentPassword, { path: ['newPassword'], message: 'The new password must differ from the current password.' })
+  .refine((v) => v.newPassword === v.confirmPassword, { path: ['confirmPassword'], message: 'common.validation.password.mismatch' })
+  .refine((v) => v.newPassword !== v.currentPassword, { path: ['newPassword'], message: 'account.validation.samePassword' })
 type FormValues = z.infer<typeof schema>
 
 export default function SecurityPage() {
+  const { t } = useTranslation()
   const setSession = useAuthStore((s) => s.setSession)
   const {
     register,
@@ -39,7 +41,7 @@ export default function SecurityPage() {
       // The API rotates the session: other devices are signed out, this one receives fresh tokens.
       setSession(await authApi.changePassword(v))
       reset()
-      toast.success('Password changed. Other sessions have been signed out.')
+      toast.success(t('account.security.changed'))
     } catch (error) {
       applyServerErrors(error, setError, ['currentPassword', 'newPassword', 'confirmPassword'])
     }
@@ -47,31 +49,35 @@ export default function SecurityPage() {
 
   return (
     <>
-      <PageHeader title="Security" description="Manage your password and sessions." back={{ to: '/profile', label: 'My profile' }} />
+      <PageHeader
+        title={t('account.security.title')}
+        description={t('account.security.description')}
+        back={{ to: '/profile', label: t('account.profile.title') }}
+      />
       <div className="grid max-w-4xl gap-6 lg:grid-cols-[1fr_300px]">
         <form onSubmit={handleSubmit(submit)} noValidate>
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
-                <KeyRound className="size-4" /> Change password
+                <KeyRound className="size-4" /> {t('account.security.changePassword')}
               </CardTitle>
-              <CardDescription>Use at least 8 characters including an uppercase letter, a digit and a symbol.</CardDescription>
+              <CardDescription>{t('account.security.changePasswordHint')}</CardDescription>
             </CardHeader>
             <CardContent className="grid gap-4">
-              <FormField label="Current password" htmlFor="currentPassword" error={errors.currentPassword?.message}>
+              <FormField label={t('account.fields.currentPassword')} htmlFor="currentPassword" error={errors.currentPassword?.message}>
                 <Input id="currentPassword" type="password" autoComplete="current-password" aria-invalid={!!errors.currentPassword} {...register('currentPassword')} />
               </FormField>
-              <FormField label="New password" htmlFor="newPassword" error={errors.newPassword?.message}>
+              <FormField label={t('account.fields.newPassword')} htmlFor="newPassword" error={errors.newPassword?.message}>
                 <Input id="newPassword" type="password" autoComplete="new-password" aria-invalid={!!errors.newPassword} {...register('newPassword')} />
               </FormField>
-              <FormField label="Confirm new password" htmlFor="confirmPassword" error={errors.confirmPassword?.message}>
+              <FormField label={t('account.fields.confirmNewPassword')} htmlFor="confirmPassword" error={errors.confirmPassword?.message}>
                 <Input id="confirmPassword" type="password" autoComplete="new-password" aria-invalid={!!errors.confirmPassword} {...register('confirmPassword')} />
               </FormField>
             </CardContent>
             <CardFooter className="justify-end">
               <Button type="submit" disabled={isSubmitting}>
                 {isSubmitting && <Spinner />}
-                Update password
+                {t('account.security.submit')}
               </Button>
             </CardFooter>
           </Card>
@@ -79,13 +85,13 @@ export default function SecurityPage() {
         <Card className="h-fit">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <ShieldCheck className="size-4" /> How sessions work
+              <ShieldCheck className="size-4" /> {t('account.security.sessionsTitle')}
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-2 text-sm text-muted-foreground">
-            <p>Your session uses a short-lived access token held only in memory and a refresh token in a secure, HttpOnly cookie.</p>
-            <p>Refresh tokens rotate on every use. If an old token is replayed, all of your sessions are revoked automatically.</p>
-            <p>Changing your password signs out every other device.</p>
+            <p>{t('account.security.sessions1')}</p>
+            <p>{t('account.security.sessions2')}</p>
+            <p>{t('account.security.sessions3')}</p>
           </CardContent>
         </Card>
       </div>

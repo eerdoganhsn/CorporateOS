@@ -3,6 +3,7 @@ using System.Text;
 using ClosedXML.Excel;
 using CorporateOS.Application.Common.Interfaces;
 using CorporateOS.Application.Common.Models;
+using CorporateOS.Domain.Localization;
 
 namespace CorporateOS.Infrastructure.Services;
 
@@ -26,7 +27,7 @@ public sealed class ExportService(TimeProvider clock) : IExportService
     {
         using var workbook = new XLWorkbook();
         var sheetName = new string(table.Title.Where(c => !"[]*?/\\:".Contains(c)).Take(31).ToArray());
-        var sheet = workbook.Worksheets.Add(string.IsNullOrWhiteSpace(sheetName) ? "Report" : sheetName);
+        var sheet = workbook.Worksheets.Add(string.IsNullOrWhiteSpace(sheetName) ? Text.Get("report.sheet") : sheetName);
 
         for (var col = 0; col < table.Columns.Count; col++)
         {
@@ -47,7 +48,7 @@ public sealed class ExportService(TimeProvider clock) : IExportService
                     case double db: cell.Value = db; break;
                     case DateOnly date: cell.Value = date.ToDateTime(TimeOnly.MinValue); cell.Style.DateFormat.Format = "yyyy-mm-dd"; break;
                     case DateTime dt: cell.Value = dt; cell.Style.DateFormat.Format = "yyyy-mm-dd hh:mm"; break;
-                    case bool b: cell.Value = b ? "Yes" : "No"; break;
+                    case bool b: cell.Value = Text.Get(b ? "common.yes" : "common.no"); break;
                     case var other: cell.Value = other.ToString(); break;
                 }
             }
@@ -79,7 +80,7 @@ public sealed class ExportService(TimeProvider clock) : IExportService
         decimal d => d.ToString("0.00", CultureInfo.InvariantCulture),
         DateOnly date => date.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture),
         DateTime dt => dt.ToString("yyyy-MM-dd HH:mm", CultureInfo.InvariantCulture),
-        bool b => b ? "Yes" : "No",
+        bool b => Text.Get(b ? "common.yes" : "common.no"),
         IFormattable f => f.ToString(null, CultureInfo.InvariantCulture),
         _ => value.ToString() ?? string.Empty
     };

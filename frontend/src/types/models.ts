@@ -1,3 +1,4 @@
+import type { Language } from '@/i18n/languages'
 import type { ActivityItem, ChartPoint, EmployeeSummary } from './api'
 import type {
   AnnouncementPriority,
@@ -34,6 +35,8 @@ export interface AuthUser {
   departmentName: string | null
   positionTitle: string | null
   profileImageUrl: string | null
+  /** Preferred UI language stored in the user's profile. */
+  language: Language
 }
 
 export interface AuthResponse {

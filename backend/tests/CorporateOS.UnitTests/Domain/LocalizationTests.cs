@@ -1,5 +1,7 @@
 using System.Globalization;
 using System.Text.RegularExpressions;
+using CorporateOS.Application.Features.Users;
+using CorporateOS.Domain.Constants;
 using CorporateOS.Domain.Enums;
 using CorporateOS.Domain.Localization;
 using FluentAssertions;
@@ -32,7 +34,8 @@ public partial class LocalizationTests
         Type[] enums =
         [
             typeof(LeaveType), typeof(LeaveRequestStatus), typeof(ExpenseCategory), typeof(ExpenseStatus),
-            typeof(ProjectStatus), typeof(Priority), typeof(TaskItemStatus), typeof(EmploymentType), typeof(EmployeeStatus)
+            typeof(ProjectStatus), typeof(Priority), typeof(TaskItemStatus), typeof(EmploymentType), typeof(EmployeeStatus),
+            typeof(DocumentCategory)
         ];
 
         var missing = enums.SelectMany(t => System.Enum.GetValues(t).Cast<System.Enum>())
@@ -78,6 +81,26 @@ public partial class LocalizationTests
         LocalizedText.Of("notify.taskAssigned.title").Render(Languages.German)
             .Should().Be(Text.Catalog(Languages.German)["notify.taskAssigned.title"]);
         LocalizedText.Raw("Town hall").Render(Languages.Turkish).Should().Be("Town hall");
+    }
+
+    [Fact]
+    public void Every_setting_has_a_label_and_description()
+    {
+        var missing = SettingCatalog.All
+            .SelectMany(d => new[] { $"setting.{d.Key}.label", $"setting.{d.Key}.description", $"settings.category.{d.Category}" })
+            .Where(key => !Text.Has(key))
+            .ToList();
+
+        missing.Should().BeEmpty();
+    }
+
+    [Fact]
+    public void Permission_matrix_is_fully_translated()
+    {
+        var rows = PermissionMatrix.All();
+
+        rows.Should().NotBeEmpty();
+        rows.Should().OnlyContain(p => !p.Area.StartsWith("permission.") && !p.Permission.StartsWith("permission."));
     }
 
     private static IEnumerable<string> Placeholders(string text) =>

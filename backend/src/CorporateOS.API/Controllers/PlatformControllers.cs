@@ -8,6 +8,7 @@ using CorporateOS.Application.Features.Search;
 using CorporateOS.Application.Features.Settings;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using CorporateOS.Domain.Localization;
 
 namespace CorporateOS.API.Controllers;
 
@@ -26,12 +27,12 @@ public sealed class NotificationsController(INotificationService notifications) 
     public async Task<ActionResult<ApiResponse<object>>> MarkRead(long id, CancellationToken ct)
     {
         await notifications.MarkReadAsync(id, ct);
-        return OkMessage("Notification marked as read.");
+        return OkMessage(Text.Get("success.notificationRead"));
     }
 
     [HttpPatch("read-all")]
     public async Task<ActionResult<ApiResponse<int>>> MarkAllRead(CancellationToken ct) =>
-        OkResponse(await notifications.MarkAllReadAsync(ct), "All notifications marked as read.");
+        OkResponse(await notifications.MarkAllReadAsync(ct), Text.Get("success.allNotificationsRead"));
 }
 
 [Route("api/dashboard")]

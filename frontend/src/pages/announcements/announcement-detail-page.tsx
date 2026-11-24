@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
 import { CalendarClock, Pencil, Pin, Users } from 'lucide-react'
 import { useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { useParams } from 'react-router'
 import { announcementsApi } from '@/api/endpoints'
 import { PriorityBadge, StatusBadge } from '@/components/common/badges'
@@ -10,9 +11,11 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/display'
 import { AnnouncementDialog } from '@/features/announcements/announcement-dialog'
 import { usePermissions } from '@/store/auth-store'
-import { formatDateTime, humanize } from '@/utils/format'
+import { enumLabel } from '@/i18n/enum-label'
+import { formatDateTime } from '@/utils/format'
 
 export default function AnnouncementDetailPage() {
+  const { t } = useTranslation()
   const id = Number(useParams().id)
   const { isAdmin } = usePermissions()
   const [editOpen, setEditOpen] = useState(false)
@@ -24,13 +27,13 @@ export default function AnnouncementDetailPage() {
   return (
     <>
       <PageHeader
-        back={{ to: '/announcements', label: 'Announcements' }}
+        back={{ to: '/announcements', label: t('content.announcements.title') }}
         title={a.title}
         actions={
           isAdmin && (
             <Button variant="outline" onClick={() => setEditOpen(true)}>
               <Pencil />
-              Edit
+              {t('common.actions.edit')}
             </Button>
           )
         }
@@ -40,14 +43,14 @@ export default function AnnouncementDetailPage() {
           <div className="mb-5 flex flex-wrap items-center gap-3 border-b pb-4 text-xs text-muted-foreground">
             {a.isPinned && (
               <span className="flex items-center gap-1 font-medium">
-                <Pin className="size-3" /> Pinned
+                <Pin className="size-3" /> {t('content.announcements.pinned')}
               </span>
             )}
-            <PriorityBadge priority={a.priority} />
-            {a.state !== 'Active' && <StatusBadge status={a.state} />}
+            <PriorityBadge priority={a.priority} type="AnnouncementPriority" />
+            {a.state !== 'Active' && <StatusBadge status={a.state} type="AnnouncementState" />}
             <span className="flex items-center gap-1">
               <Users className="size-3" />
-              {a.targetType === 'SpecificDepartment' ? a.departmentName : humanize(a.targetType)}
+              {a.targetType === 'SpecificDepartment' ? a.departmentName : enumLabel('AnnouncementTarget', a.targetType)}
             </span>
             <span className="flex items-center gap-1">
               <CalendarClock className="size-3" />

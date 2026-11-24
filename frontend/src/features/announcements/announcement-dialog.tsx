@@ -3,6 +3,7 @@ import { useQueryClient } from '@tanstack/react-query'
 import { format, parseISO } from 'date-fns'
 import { useEffect } from 'react'
 import { useForm, useWatch } from 'react-hook-form'
+import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 import { z } from 'zod'
 import { announcementsApi } from '@/api/endpoints'
@@ -14,14 +15,14 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { useDepartmentLookup } from '@/hooks/use-lookups'
 import { ANNOUNCEMENT_PRIORITIES, ANNOUNCEMENT_TARGETS } from '@/types/enums'
 import type { Announcement } from '@/types/models'
-import { humanize } from '@/utils/format'
+import { enumLabel } from '@/i18n/enum-label'
 import { toOptionalNumber } from '@/utils/form'
 import { applyServerErrors } from '@/utils/server-errors'
 
 const schema = z
   .object({
-    title: z.string().trim().min(1, 'Title is required.').max(200),
-    content: z.string().trim().min(1, 'Content is required.').max(8000),
+    title: z.string().trim().min(1, 'content.announcements.validation.titleRequired').max(200),
+    content: z.string().trim().min(1, 'content.announcements.validation.contentRequired').max(8000),
     priority: z.enum(ANNOUNCEMENT_PRIORITIES),
     targetType: z.enum(ANNOUNCEMENT_TARGETS),
     departmentId: z.string(),
@@ -29,10 +30,10 @@ const schema = z
     expireDate: z.string(),
     isPinned: z.boolean(),
   })
-  .refine((v) => v.targetType !== 'SpecificDepartment' || !!v.departmentId, { path: ['departmentId'], message: 'Select a department.' })
+  .refine((v) => v.targetType !== 'SpecificDepartment' || !!v.departmentId, { path: ['departmentId'], message: 'content.announcements.validation.departmentRequired' })
   .refine((v) => !v.expireDate || v.expireDate > (v.publishDate || new Date().toISOString().slice(0, 16)), {
     path: ['expireDate'],
-    message: 'Expiry must be after the publish date.',
+    message: 'content.announcements.validation.expiryAfterPublish',
   })
 type FormValues = z.infer<typeof schema>
 
@@ -49,6 +50,7 @@ export function AnnouncementDialog({
   onOpenChange: (open: boolean) => void
   announcement?: Announcement
 }) {
+  const { t } = useTranslation()
   const queryClient = useQueryClient()
   const departments = useDepartmentLookup()
   const {
@@ -93,7 +95,7 @@ export function AnnouncementDialog({
       else await announcementsApi.create(payload)
       await queryClient.invalidateQueries({ queryKey: ['announcements'] })
       await queryClient.invalidateQueries({ queryKey: ['dashboard'] })
-      toast.success(announcement ? 'Announcement updated.' : 'Announcement published.')
+      toast.success(announcement ? t('content.announcements.dialog.updated') : t('content.announcements.dialog.published'))
       onOpenChange(false)
     } catch (error) {
       applyServerErrors(error, setError, ['title', 'content', 'priority', 'targetType', 'departmentId', 'publishDate', 'expireDate'])
@@ -104,39 +106,39 @@ export function AnnouncementDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-2xl">
         <DialogHeader>
-          <DialogTitle>{announcement ? 'Edit announcement' : 'New announcement'}</DialogTitle>
-          <DialogDescription>The target audience is notified when the announcement is published.</DialogDescription>
+          <DialogTitle>{announcement ? t('content.announcements.dialog.edit') : t('content.announcements.dialog.create')}</DialogTitle>
+          <DialogDescription>{t('content.announcements.dialog.description')}</DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit(submit)} className="grid gap-4" noValidate>
-          <FormField label="Title" htmlFor="title" error={errors.title?.message} required>
+          <FormField label={t('content.announcements.dialog.title')} htmlFor="title" error={errors.title?.message} required>
             <Input id="title" aria-invalid={!!errors.title} {...register('title')} />
           </FormField>
-          <FormField label="Content" htmlFor="content" error={errors.content?.message} required>
+          <FormField label={t('content.announcements.dialog.content')} htmlFor="content" error={errors.content?.message} required>
             <Textarea id="content" rows={6} maxLength={8000} aria-invalid={!!errors.content} {...register('content')} />
           </FormField>
           <div className="grid gap-4 sm:grid-cols-3">
-            <FormField label="Priority" htmlFor="priority">
+            <FormField label={t('content.announcements.dialog.priority')} htmlFor="priority">
               <NativeSelect id="priority" {...register('priority')}>
                 {ANNOUNCEMENT_PRIORITIES.map((p) => (
                   <option key={p} value={p}>
-                    {p}
+                    {enumLabel('AnnouncementPriority', p)}
                   </option>
                 ))}
               </NativeSelect>
             </FormField>
-            <FormField label="Audience" htmlFor="targetType">
+            <FormField label={t('content.announcements.dialog.audience')} htmlFor="targetType">
               <NativeSelect id="targetType" {...register('targetType')}>
-                {ANNOUNCEMENT_TARGETS.map((t) => (
-                  <option key={t} value={t}>
-                    {humanize(t)}
+                {ANNOUNCEMENT_TARGETS.map((target) => (
+                  <option key={target} value={target}>
+                    {enumLabel('AnnouncementTarget', target)}
                   </option>
                 ))}
               </NativeSelect>
             </FormField>
             {target === 'SpecificDepartment' && (
-              <FormField label="Department" htmlFor="departmentId" error={errors.departmentId?.message} required>
+              <FormField label={t('content.announcements.dialog.department')} htmlFor="departmentId" error={errors.departmentId?.message} required>
                 <NativeSelect id="departmentId" aria-invalid={!!errors.departmentId} {...register('departmentId')}>
-                  <option value="">Select…</option>
+                  <option value="">{t('content.announcements.dialog.select')}</option>
                   {departments.data?.map((d) => (
                     <option key={d.id} value={d.id}>
                       {d.name}
@@ -147,26 +149,26 @@ export function AnnouncementDialog({
             )}
           </div>
           <div className="grid gap-4 sm:grid-cols-2">
-            <FormField label="Publish at" htmlFor="publishDate" hint="Leave empty to publish now.">
+            <FormField label={t('content.announcements.dialog.publishAt')} htmlFor="publishDate" hint={t('content.announcements.dialog.publishHint')}>
               <Input id="publishDate" type="datetime-local" {...register('publishDate')} />
             </FormField>
-            <FormField label="Expires at" htmlFor="expireDate" error={errors.expireDate?.message} hint="Expired announcements are hidden automatically.">
+            <FormField label={t('content.announcements.dialog.expiresAt')} htmlFor="expireDate" error={errors.expireDate?.message} hint={t('content.announcements.dialog.expiresHint')}>
               <Input id="expireDate" type="datetime-local" aria-invalid={!!errors.expireDate} {...register('expireDate')} />
             </FormField>
           </div>
           <div className="flex items-center gap-2">
             <Checkbox id="isPinned" checked={pinned} onCheckedChange={(c) => setValue('isPinned', c === true)} />
             <Label htmlFor="isPinned" className="font-normal">
-              Pin to the top of the list
+              {t('content.announcements.dialog.pin')}
             </Label>
           </div>
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
-              Cancel
+              {t('common.actions.cancel')}
             </Button>
             <Button type="submit" disabled={isSubmitting}>
               {isSubmitting && <Spinner />}
-              {announcement ? 'Save changes' : 'Publish'}
+              {announcement ? t('common.actions.saveChanges') : t('content.announcements.dialog.publish')}
             </Button>
           </DialogFooter>
         </form>

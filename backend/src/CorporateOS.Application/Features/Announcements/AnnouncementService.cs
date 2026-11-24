@@ -162,11 +162,9 @@ public sealed class AnnouncementService(
         };
 
         var preview = announcement.Content.Length > 160 ? announcement.Content[..157] + "..." : announcement.Content;
-        foreach (var userId in audience.Where(u => u != announcement.CreatedById))
-        {
-            notifications.Notify(userId, announcement.Title, preview, NotificationType.AnnouncementPublished,
-                nameof(Announcement), announcement.Id.ToString());
-        }
+        await notifications.NotifyUsersAsync(audience.Where(u => u != announcement.CreatedById),
+            LocalizedText.Raw(announcement.Title), LocalizedText.Raw(preview), NotificationType.AnnouncementPublished,
+            nameof(Announcement), announcement.Id.ToString(), cancellationToken);
 
         announcement.NotificationsSentAt = Now;
     }

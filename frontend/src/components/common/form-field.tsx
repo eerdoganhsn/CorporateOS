@@ -1,4 +1,6 @@
 import type { ReactNode } from 'react'
+import { useTranslation } from 'react-i18next'
+import { translateMessage } from '@/i18n'
 import { Label } from '@/components/ui/form-controls'
 import { cn } from '@/utils/cn'
 
@@ -14,6 +16,7 @@ interface FormFieldProps {
 
 /** Label + control + validation message, consistently spaced. */
 export function FormField({ label, htmlFor, error, hint, required, className, children }: FormFieldProps) {
+  useTranslation()
   return (
     <div className={cn('space-y-1.5', className)}>
       <Label htmlFor={htmlFor}>
@@ -27,7 +30,7 @@ export function FormField({ label, htmlFor, error, hint, required, className, ch
       {children}
       {error ? (
         <p id={`${htmlFor}-error`} className="text-xs text-destructive" role="alert">
-          {error}
+          {translateMessage(error)}
         </p>
       ) : (
         hint && <p className="text-xs text-muted-foreground">{hint}</p>

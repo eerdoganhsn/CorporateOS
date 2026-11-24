@@ -144,8 +144,8 @@ public sealed class ProjectService(
         if (project.ProjectManagerId is { } managerId)
         {
             db.ProjectMembers.Add(new ProjectMember { ProjectId = project.Id, EmployeeId = managerId, Role = "Project Manager", JoinedAt = Now });
-            await notifications.NotifyEmployeesAsync([managerId], "You are managing a new project",
-                $"You were assigned as project manager of {project.Name} ({project.ProjectCode}).",
+            await notifications.NotifyEmployeesAsync([managerId], LocalizedText.Of("notify.projectManagerNew.title"),
+                LocalizedText.Of("notify.projectManagerNew.message", project.Name, project.ProjectCode),
                 NotificationType.ProjectAssignment, nameof(Project), project.Id.ToString(), cancellationToken);
         }
 
@@ -178,8 +178,8 @@ public sealed class ProjectService(
                 db.ProjectMembers.Add(new ProjectMember { ProjectId = id, EmployeeId = newManager, Role = "Project Manager", JoinedAt = Now });
             }
 
-            await notifications.NotifyEmployeesAsync([newManager], "Project manager assignment",
-                $"You are now the project manager of {project.Name}.", NotificationType.ProjectAssignment,
+            await notifications.NotifyEmployeesAsync([newManager], LocalizedText.Of("notify.projectManagerChanged.title"),
+                LocalizedText.Of("notify.projectManagerChanged.message", project.Name), NotificationType.ProjectAssignment,
                 nameof(Project), id.ToString(), cancellationToken);
         }
 
@@ -222,8 +222,8 @@ public sealed class ProjectService(
 
         var role = string.IsNullOrWhiteSpace(request.Role) ? "Member" : request.Role.Trim();
         db.ProjectMembers.Add(new ProjectMember { ProjectId = id, EmployeeId = employee.Id, Role = role, JoinedAt = Now });
-        await notifications.NotifyEmployeesAsync([employee.Id], "Added to project",
-            $"You were added to {project.Name} as {role}.", NotificationType.ProjectAssignment,
+        await notifications.NotifyEmployeesAsync([employee.Id], LocalizedText.Of("notify.projectMemberAdded.title"),
+            LocalizedText.Of("notify.projectMemberAdded.message", project.Name, role), NotificationType.ProjectAssignment,
             nameof(Project), id.ToString(), cancellationToken);
         audit.Record("Project.MemberAdded", nameof(Project), id.ToString(), newValues: new { EmployeeId = employee.Id, employee.FirstName, employee.LastName, Role = role });
         await db.SaveChangesAsync(cancellationToken);
@@ -243,8 +243,8 @@ public sealed class ProjectService(
         }
 
         db.ProjectMembers.Remove(member);
-        await notifications.NotifyEmployeesAsync([employeeId], "Removed from project",
-            $"You are no longer a member of {project.Name}.", NotificationType.ProjectAssignment,
+        await notifications.NotifyEmployeesAsync([employeeId], LocalizedText.Of("notify.projectMemberRemoved.title"),
+            LocalizedText.Of("notify.projectMemberRemoved.message", project.Name), NotificationType.ProjectAssignment,
             nameof(Project), id.ToString(), cancellationToken);
         audit.Record("Project.MemberRemoved", nameof(Project), id.ToString(), new { EmployeeId = employeeId, member.Employee.FirstName, member.Employee.LastName });
         await db.SaveChangesAsync(cancellationToken);

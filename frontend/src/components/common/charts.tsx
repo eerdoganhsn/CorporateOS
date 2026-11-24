@@ -16,7 +16,9 @@ import {
 } from 'recharts'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/display'
 import type { ChartPoint } from '@/types/api'
-import { humanize } from '@/utils/format'
+import { formatPercent } from '@/utils/format'
+import { useTranslation } from 'react-i18next'
+import { enumLabel } from '@/i18n/enum-label'
 import { EmptyState } from './states'
 
 const PALETTE = ['#27272a', '#52525b', '#71717a', '#a1a1aa', '#d4d4d8', '#3f3f46', '#e4e4e7']
@@ -85,8 +87,9 @@ export function SimpleBarChart({
   formatValue?: (value: number) => string
   horizontal?: boolean
 }) {
-  if (!hasData(data)) return <EmptyState title="No data for this period" className="py-8" />
-  const points = data.map((p) => ({ ...p, label: humanize(p.label) }))
+  const { t } = useTranslation()
+  if (!hasData(data)) return <EmptyState title={t('common.states.noData')} className="py-8" />
+  const points = data.map((p) => ({ ...p, label: enumLabel('Status', p.label) }))
 
   return (
     <ResponsiveContainer width="100%" height={height}>
@@ -96,7 +99,7 @@ export function SimpleBarChart({
           <XAxis type="number" tick={AXIS} axisLine={false} tickLine={false} tickFormatter={formatValue} />
           <YAxis type="category" dataKey="label" tick={AXIS} axisLine={false} tickLine={false} width={130} />
           <Tooltip {...tooltipStyle} formatter={(v) => (formatValue ? formatValue(Number(v)) : v)} />
-          <Bar dataKey="value" name="Value" fill="#27272a" radius={[0, 3, 3, 0]} maxBarSize={22} />
+          <Bar dataKey="value" name={t('common.value')} fill="#27272a" radius={[0, 3, 3, 0]} maxBarSize={22} />
         </BarChart>
       ) : (
         <BarChart data={points} margin={{ top: 4, right: 4, left: -12 }}>
@@ -104,7 +107,7 @@ export function SimpleBarChart({
           <XAxis dataKey="label" tick={<WrappingCategoryTick />} axisLine={false} tickLine={false} interval={0} height={36} />
           <YAxis tick={AXIS} axisLine={false} tickLine={false} allowDecimals={false} tickFormatter={formatValue} />
           <Tooltip {...tooltipStyle} formatter={(v) => (formatValue ? formatValue(Number(v)) : v)} />
-          <Bar dataKey="value" name="Value" fill="#27272a" radius={[3, 3, 0, 0]} maxBarSize={36} />
+          <Bar dataKey="value" name={t('common.value')} fill="#27272a" radius={[3, 3, 0, 0]} maxBarSize={36} />
         </BarChart>
       )}
     </ResponsiveContainer>
@@ -120,7 +123,8 @@ export function TrendChart({
   height?: number
   formatValue?: (value: number) => string
 }) {
-  if (!hasData(data)) return <EmptyState title="No data for this period" className="py-8" />
+  const { t } = useTranslation()
+  if (!hasData(data)) return <EmptyState title={t('common.states.noData')} className="py-8" />
   return (
     <ResponsiveContainer width="100%" height={height}>
       <AreaChart data={data} margin={{ top: 4, right: 4, left: -8 }}>
@@ -135,15 +139,16 @@ export function TrendChart({
         <XAxis dataKey="label" tick={AXIS} axisLine={false} tickLine={false} interval="equidistantPreserveStart" />
         <YAxis tick={AXIS} axisLine={false} tickLine={false} tickFormatter={formatValue} />
         <Tooltip {...tooltipStyle} formatter={(v) => (formatValue ? formatValue(Number(v)) : v)} />
-        <Area type="monotone" dataKey="value" name="Value" stroke="#27272a" strokeWidth={2} fill="url(#trendFill)" />
+        <Area type="monotone" dataKey="value" name={t('common.value')} stroke="#27272a" strokeWidth={2} fill="url(#trendFill)" />
       </AreaChart>
     </ResponsiveContainer>
   )
 }
 
 export function DonutChart({ data, height = 240 }: { data: ChartPoint[]; height?: number }) {
-  const points = data.filter((p) => p.value > 0).map((p) => ({ ...p, label: humanize(p.label) }))
-  if (points.length === 0) return <EmptyState title="No data for this period" className="py-8" />
+  const { t } = useTranslation()
+  const points = data.filter((p) => p.value > 0).map((p) => ({ ...p, label: enumLabel('Status', p.label) }))
+  if (points.length === 0) return <EmptyState title={t('common.states.noData')} className="py-8" />
   const total = points.reduce((sum, p) => sum + p.value, 0)
 
   return (
@@ -168,7 +173,7 @@ export function DonutChart({ data, height = 240 }: { data: ChartPoint[]; height?
               {p.label}
             </span>
             <span className="text-muted-foreground tabular-nums">
-              {p.value} <span className="text-xs">({Math.round((p.value / total) * 100)}%)</span>
+              {p.value} <span className="text-xs">({formatPercent((p.value / total) * 100)})</span>
             </span>
           </li>
         ))}

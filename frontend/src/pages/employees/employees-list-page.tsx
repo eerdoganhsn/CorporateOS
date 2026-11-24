@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import { Plus, Users } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 import { Link, useNavigate } from 'react-router'
 import { employeesApi } from '@/api/endpoints'
 import { StatusBadge } from '@/components/common/badges'
@@ -15,11 +16,13 @@ import { useTableState } from '@/hooks/use-table-state'
 import { usePermissions } from '@/store/auth-store'
 import { EMPLOYEE_STATUSES, EMPLOYMENT_TYPES, type EmployeeStatus, type EmploymentType } from '@/types/enums'
 import type { EmployeeListItem } from '@/types/models'
-import { formatDate, humanize } from '@/utils/format'
+import { enumLabel } from '@/i18n/enum-label'
+import { formatDate } from '@/utils/format'
 
 const FILTERS = ['departmentId', 'status', 'employmentType'] as const
 
 export default function EmployeesListPage() {
+  const { t } = useTranslation()
   const navigate = useNavigate()
   const { isAdmin } = usePermissions()
   const table = useTableState(FILTERS, { sortBy: 'name', sortDirection: 'asc' })
@@ -43,29 +46,29 @@ export default function EmployeesListPage() {
   const columns: Column<EmployeeListItem>[] = [
     {
       key: 'name',
-      header: 'Employee',
+      header: t('employees.columns.employee'),
       sortKey: 'name',
       cell: (e) => <PersonCell name={e.fullName} subtitle={`${e.employeeNumber} · ${e.email}`} src={e.avatarUrl} />,
     },
-    { key: 'department', header: 'Department', sortKey: 'department', cell: (e) => e.departmentName },
-    { key: 'position', header: 'Position', sortKey: 'position', cell: (e) => e.positionTitle },
-    { key: 'type', header: 'Type', sortKey: 'employmentType', cell: (e) => humanize(e.employmentType) },
-    { key: 'status', header: 'Status', sortKey: 'status', cell: (e) => <StatusBadge status={e.status} /> },
-    { key: 'hireDate', header: 'Hire date', sortKey: 'hireDate', cell: (e) => formatDate(e.hireDate), className: 'whitespace-nowrap' },
-    { key: 'manager', header: 'Manager', cell: (e) => e.managerName ?? <span className="text-muted-foreground">—</span> },
+    { key: 'department', header: t('employees.columns.department'), sortKey: 'department', cell: (e) => e.departmentName },
+    { key: 'position', header: t('employees.columns.position'), sortKey: 'position', cell: (e) => e.positionTitle },
+    { key: 'type', header: t('employees.columns.type'), sortKey: 'employmentType', cell: (e) => enumLabel('EmploymentType', e.employmentType) },
+    { key: 'status', header: t('employees.columns.status'), sortKey: 'status', cell: (e) => <StatusBadge status={e.status} type="EmployeeStatus" /> },
+    { key: 'hireDate', header: t('employees.columns.hireDate'), sortKey: 'hireDate', cell: (e) => formatDate(e.hireDate), className: 'whitespace-nowrap' },
+    { key: 'manager', header: t('employees.columns.manager'), cell: (e) => e.managerName ?? <span className="text-muted-foreground">—</span> },
   ]
 
   return (
     <>
       <PageHeader
-        title="Employees"
-        description="Manage employee records and organizational assignments."
+        title={t('employees.list.title')}
+        description={t('employees.list.description')}
         actions={
           isAdmin && (
             <Button asChild>
               <Link to="/employees/new">
                 <Plus />
-                Add Employee
+                {t('employees.list.add')}
               </Link>
             </Button>
           )
@@ -73,21 +76,28 @@ export default function EmployeesListPage() {
       />
       <Card>
         <FilterBar onReset={table.reset} showReset={table.hasActiveFilters}>
-          <SearchInput value={table.search} onChange={table.setSearch} placeholder="Search name, email or number…" />
+          <SearchInput value={table.search} onChange={table.setSearch} placeholder={t('employees.list.search')} />
           {isAdmin && (
             <FilterSelect
-              label="All departments"
+              label={t('employees.list.allDepartments')}
               value={table.filters.departmentId}
               onChange={(v) => table.setFilter('departmentId', v)}
               options={(departments.data ?? []).map((d) => ({ value: d.id, label: d.name }))}
             />
           )}
-          <FilterSelect label="All statuses" value={table.filters.status} onChange={(v) => table.setFilter('status', v)} options={EMPLOYEE_STATUSES} />
           <FilterSelect
-            label="All types"
+            label={t('employees.list.allStatuses')}
+            value={table.filters.status}
+            onChange={(v) => table.setFilter('status', v)}
+            options={EMPLOYEE_STATUSES}
+            enumType="EmployeeStatus"
+          />
+          <FilterSelect
+            label={t('employees.list.allTypes')}
             value={table.filters.employmentType}
             onChange={(v) => table.setFilter('employmentType', v)}
             options={EMPLOYMENT_TYPES}
+            enumType="EmploymentType"
           />
         </FilterBar>
         <DataTable
@@ -105,8 +115,8 @@ export default function EmployeesListPage() {
           empty={
             <EmptyState
               icon={Users}
-              title={table.hasActiveFilters ? 'No employees match your filters' : 'No employees yet'}
-              description={table.hasActiveFilters ? 'Try a different search or clear the filters.' : 'Add your first employee to get started.'}
+              title={table.hasActiveFilters ? t('employees.list.noMatch') : t('employees.list.none')}
+              description={table.hasActiveFilters ? t('employees.list.noMatchHint') : t('employees.list.noneHint')}
             />
           }
         />

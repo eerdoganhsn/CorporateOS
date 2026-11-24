@@ -86,6 +86,48 @@ public class LocalizationTests(ApiFactory factory) : ApiTestBase(factory)
         }
     }
 
+    [Fact]
+    public async Task Notifications_are_written_in_the_recipients_language()
+    {
+        var manager = await SignInAsync(DemoUsers.Manager);
+        try
+        {
+            (await manager.PutAsJsonAsync("/api/profile/language", new { language = "de" })).StatusCode.Should().Be(HttpStatusCode.OK);
+
+            // The employee works in English; their manager receives the approval request in German.
+            var employee = await SignInAsync(DemoUsers.Employee);
+            var day = FutureWeekday(520).ToString("yyyy-MM-dd");
+            var submitted = await employee.PostAsJsonAsync("/api/leave-requests",
+                new { leaveType = "SickLeave", startDate = day, endDate = day, reason = "i18n" });
+            submitted.StatusCode.Should().Be(HttpStatusCode.Created);
+            var id = (await ReadDataAsync<JsonElement>(submitted)).GetProperty("id").GetInt32().ToString();
+
+            var list = await ReadDataAsync<JsonElement>(await manager.GetAsync("/api/notifications?pageSize=50"));
+            var notification = list.GetProperty("items").EnumerateArray()
+                .Single(n => n.GetProperty("relatedEntityId").GetString() == id);
+            notification.GetProperty("title").GetString().Should().Be(Text.For(Languages.German, "notify.leaveSubmitted.title"));
+            notification.GetProperty("message").GetString().Should().Contain(Text.For(Languages.German, "enum.LeaveType.SickLeave"));
+        }
+        finally
+        {
+            await manager.PutAsJsonAsync("/api/profile/language", new { language = "tr" });
+        }
+    }
+
+    [Fact]
+    public async Task Report_labels_follow_the_request_language()
+    {
+        var client = WithLanguage(await SignInAsync(DemoUsers.Admin), "tr");
+
+        var report = await ReadDataAsync<JsonElement>(await client.GetAsync("/api/reports/employees"));
+
+        report.GetProperty("title").GetString().Should().Be(Text.For(Languages.Turkish, "report.employees.title"));
+        report.GetProperty("columns")[0].GetProperty("label").GetString()
+            .Should().Be(Text.For(Languages.Turkish, "report.col.employeeNumber"));
+        report.GetProperty("summary")[0].GetProperty("label").GetString()
+            .Should().Be(Text.For(Languages.Turkish, "report.sum.employees"));
+    }
+
     private static HttpClient WithLanguage(HttpClient client, string? acceptLanguage)
     {
         client.DefaultRequestHeaders.AcceptLanguage.Clear();

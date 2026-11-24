@@ -1,5 +1,6 @@
 import { UserMinus, UserPlus, Users } from 'lucide-react'
 import { useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { Link } from 'react-router'
 import { projectsApi } from '@/api/endpoints'
 import { ConfirmDialog } from '@/components/common/confirm-dialog'
@@ -15,13 +16,14 @@ import type { ProjectDetail, ProjectMember } from '@/types/models'
 import { formatDate } from '@/utils/format'
 
 export function ProjectMembers({ project }: { project: ProjectDetail }) {
+  const { t } = useTranslation()
   const [addOpen, setAddOpen] = useState(false)
   const [removing, setRemoving] = useState<ProjectMember | null>(null)
 
   const remove = useApiMutation({
     mutationFn: (employeeId: number) => projectsApi.removeMember(project.id, employeeId),
     invalidate: [['projects', project.id], ['lookups']],
-    successMessage: 'Member removed.',
+    successMessage: t('projects.members.removed'),
   })
 
   return (
@@ -30,12 +32,12 @@ export function ProjectMembers({ project }: { project: ProjectDetail }) {
         <div className="flex justify-end border-b px-4 py-3">
           <Button size="sm" variant="outline" onClick={() => setAddOpen(true)}>
             <UserPlus />
-            Add member
+            {t('projects.members.add')}
           </Button>
         </div>
       )}
       {project.members.length === 0 ? (
-        <EmptyState icon={Users} title="No members yet" />
+        <EmptyState icon={Users} title={t('projects.members.none')} />
       ) : (
         <ul className="divide-y">
           {project.members.map((m) => (
@@ -44,9 +46,9 @@ export function ProjectMembers({ project }: { project: ProjectDetail }) {
                 <PersonCell name={m.fullName} subtitle={`${m.role} · ${m.positionTitle ?? ''} · ${m.departmentName ?? ''}`} src={m.avatarUrl} />
               </Link>
               <div className="flex shrink-0 items-center gap-3">
-                <span className="hidden text-xs text-muted-foreground sm:inline">Joined {formatDate(m.joinedAt)}</span>
+                <span className="hidden text-xs text-muted-foreground sm:inline">{t('projects.members.joined', { date: formatDate(m.joinedAt) })}</span>
                 {project.canManage && m.employeeId !== project.projectManager?.id && (
-                  <Button variant="ghost" size="icon-sm" aria-label={`Remove ${m.fullName}`} onClick={() => setRemoving(m)}>
+                  <Button variant="ghost" size="icon-sm" aria-label={t('projects.members.removeNamed', { name: m.fullName })} onClick={() => setRemoving(m)}>
                     <UserMinus />
                   </Button>
                 )}
@@ -60,9 +62,9 @@ export function ProjectMembers({ project }: { project: ProjectDetail }) {
       <ConfirmDialog
         open={!!removing}
         onOpenChange={(open) => !open && setRemoving(null)}
-        title={`Remove ${removing?.fullName}?`}
-        description="They will lose access to this project's tasks unless tasks are assigned to them directly."
-        confirmLabel="Remove"
+        title={t('projects.members.confirmRemoveTitle', { name: removing?.fullName })}
+        description={t('projects.members.confirmRemoveBody')}
+        confirmLabel={t('common.actions.remove')}
         destructive
         onConfirm={() => remove.mutateAsync(removing!.employeeId)}
       />
@@ -71,17 +73,18 @@ export function ProjectMembers({ project }: { project: ProjectDetail }) {
 }
 
 function AddMemberDialog({ project, open, onOpenChange }: { project: ProjectDetail; open: boolean; onOpenChange: (open: boolean) => void }) {
+  const { t } = useTranslation()
   const employees = useEmployeeLookup(undefined, open)
   const [employeeId, setEmployeeId] = useState('')
-  const [role, setRole] = useState('Member')
+  const [role, setRole] = useState(() => t('projects.members.defaultRole'))
 
   const add = useApiMutation({
     mutationFn: () => projectsApi.addMember(project.id, Number(employeeId), role),
     invalidate: [['projects', project.id], ['lookups']],
-    successMessage: 'Member added.',
+    successMessage: t('projects.members.added'),
     onSuccess: () => {
       setEmployeeId('')
-      setRole('Member')
+      setRole(t('projects.members.defaultRole'))
       onOpenChange(false)
     },
   })
@@ -91,8 +94,8 @@ function AddMemberDialog({ project, open, onOpenChange }: { project: ProjectDeta
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Add project member</DialogTitle>
-          <DialogDescription>The employee will be notified and can then see the project.</DialogDescription>
+          <DialogTitle>{t('projects.members.dialogTitle')}</DialogTitle>
+          <DialogDescription>{t('projects.members.dialogDescription')}</DialogDescription>
         </DialogHeader>
         <form
           className="grid gap-4"
@@ -101,9 +104,9 @@ function AddMemberDialog({ project, open, onOpenChange }: { project: ProjectDeta
             if (employeeId) add.mutate()
           }}
         >
-          <FormField label="Employee" htmlFor="memberEmployee" required>
+          <FormField label={t('projects.members.employee')} htmlFor="memberEmployee" required>
             <NativeSelect id="memberEmployee" value={employeeId} onChange={(e) => setEmployeeId(e.target.value)}>
-              <option value="">Select employee…</option>
+              <option value="">{t('projects.members.selectEmployee')}</option>
               {employees.data
                 ?.filter((e) => !memberIds.has(e.id))
                 .map((e) => (
@@ -113,16 +116,16 @@ function AddMemberDialog({ project, open, onOpenChange }: { project: ProjectDeta
                 ))}
             </NativeSelect>
           </FormField>
-          <FormField label="Project role" htmlFor="memberRole">
+          <FormField label={t('projects.members.role')} htmlFor="memberRole">
             <Input id="memberRole" value={role} maxLength={100} onChange={(e) => setRole(e.target.value)} />
           </FormField>
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
-              Cancel
+              {t('common.actions.cancel')}
             </Button>
             <Button type="submit" disabled={!employeeId || add.isPending}>
               {add.isPending && <Spinner />}
-              Add member
+              {t('projects.members.add')}
             </Button>
           </DialogFooter>
         </form>

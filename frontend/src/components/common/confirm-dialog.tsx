@@ -1,4 +1,5 @@
 import { useState, type ReactNode } from 'react'
+import { useTranslation } from 'react-i18next'
 import { Button } from '@/components/ui/button'
 import { AlertDialog, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogTitle } from '@/components/ui/overlays'
 import { Spinner } from './states'
@@ -19,10 +20,11 @@ export function ConfirmDialog({
   onOpenChange,
   title,
   description,
-  confirmLabel = 'Confirm',
+  confirmLabel,
   destructive,
   onConfirm,
 }: ConfirmDialogProps) {
+  const { t } = useTranslation()
   const [pending, setPending] = useState(false)
 
   const handleConfirm = async () => {
@@ -47,10 +49,10 @@ export function ConfirmDialog({
           </AlertDialogDescription>
         </div>
         <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
-          <AlertDialogCancel disabled={pending}>Cancel</AlertDialogCancel>
+          <AlertDialogCancel disabled={pending}>{t('common.actions.cancel')}</AlertDialogCancel>
           <Button variant={destructive ? 'destructive' : 'default'} onClick={handleConfirm} disabled={pending}>
             {pending && <Spinner />}
-            {confirmLabel}
+            {confirmLabel ?? t('common.actions.confirm')}
           </Button>
         </div>
       </AlertDialogContent>

@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { FormField } from '@/components/common/form-field'
 import { Spinner } from '@/components/common/states'
 import { Button } from '@/components/ui/button'
@@ -19,6 +20,7 @@ export function DecisionDialog({
   onClose: () => void
   onSubmit: (text: string) => Promise<unknown>
 }) {
+  const { t } = useTranslation()
   const [text, setText] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [pending, setPending] = useState(false)
@@ -33,7 +35,7 @@ export function DecisionDialog({
 
   const submit = async () => {
     if (isReject && !text.trim()) {
-      setError('A rejection reason is required.')
+      setError(t('leave.decision.reasonRequired'))
       return
     }
     setPending(true)
@@ -53,15 +55,15 @@ export function DecisionDialog({
     <Dialog open={decision !== null} onOpenChange={(open) => !open && close()}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>{isReject ? 'Reject request' : 'Approve request'}</DialogTitle>
+          <DialogTitle>{isReject ? t('leave.decision.reject') : t('leave.decision.approve')}</DialogTitle>
           <DialogDescription>{subject}</DialogDescription>
         </DialogHeader>
         <FormField
-          label={isReject ? 'Reason for rejection' : 'Note (optional)'}
+          label={isReject ? t('leave.decision.reason') : t('leave.decision.note')}
           htmlFor="decisionText"
           error={error ?? undefined}
           required={isReject}
-          hint="The employee will see this in their notification."
+          hint={t('leave.decision.hint')}
         >
           <Textarea
             id="decisionText"
@@ -77,11 +79,11 @@ export function DecisionDialog({
         </FormField>
         <DialogFooter>
           <Button variant="outline" onClick={close} disabled={pending}>
-            Cancel
+            {t('common.actions.cancel')}
           </Button>
           <Button variant={isReject ? 'destructive' : 'default'} onClick={submit} disabled={pending}>
             {pending && <Spinner />}
-            {isReject ? 'Reject' : 'Approve'}
+            {isReject ? t('common.actions.reject') : t('common.actions.approve')}
           </Button>
         </DialogFooter>
       </DialogContent>

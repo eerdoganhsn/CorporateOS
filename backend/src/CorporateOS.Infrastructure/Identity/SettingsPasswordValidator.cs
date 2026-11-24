@@ -21,7 +21,7 @@ public sealed class SettingsPasswordValidator(ISettingsService settings) : IPass
         var minLength = await settings.GetIntAsync(SettingKeys.PasswordMinLength);
         if (password.Length < minLength)
         {
-            errors.Add(Error("PasswordTooShort", $"Password must be at least {minLength} characters."));
+            errors.Add(Error("PasswordTooShort", Text.Get("password.tooShort", minLength)));
         }
 
         if (await settings.GetBoolAsync(SettingKeys.PasswordRequireDigit) && !password.Any(char.IsDigit))

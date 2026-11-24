@@ -53,11 +53,14 @@ public sealed class ReportService(IApplicationDbContext db, ICurrentUserService 
             _ => throw new NotFoundException("Report", type)
         };
 
-        return result with { Scope = scopeLabel ?? "All departments" };
+        return result with { Scope = scopeLabel ?? Text.Get("report.allDepartments") };
     }
 
+    /// <summary>Flattens a report for CSV/Excel export; enum cells become their translated names.</summary>
     public ReportTable ToTable(ReportResult result) =>
-        new(result.Title, result.Columns.Select(c => c.Label).ToList(), result.Rows);
+        new(result.Title,
+            result.Columns.Select(c => c.Label).ToList(),
+            result.Rows.Select(row => (IReadOnlyList<object?>)row.Select(v => v is Enum e ? Text.Enum(e) : v).ToList()).ToList());
 
     private async Task<ReportResult> EmployeesAsync(ReportFilter f, CancellationToken ct)
     {
@@ -82,18 +85,18 @@ public sealed class ReportService(IApplicationDbContext db, ICurrentUserService 
         var byDepartment = rows.GroupBy(r => r.Department).Select(g => new ChartPoint(g.Key, g.Count())).OrderByDescending(p => p.Value).ToList();
         var byType = rows.GroupBy(r => r.EmploymentType).ToDictionary(g => g.Key, g => g.Count());
 
-        return Build("Employee Report", "Headcount and employment details (hire date filters apply to the date range).",
-            [Col("employeeNumber", "Employee #"), Col("name", "Name"), Col("email", "Email"), Col("department", "Department"),
-             Col("position", "Position"), Col("employmentType", "Type", C.Status), Col("status", "Status", C.Status),
-             Col("hireDate", "Hire date", C.Date), Col("manager", "Manager")],
-            rows.Select(r => Row(r.EmployeeNumber, r.Name, r.Email, r.Department, r.Position, r.EmploymentType.ToString(), r.Status.ToString(), r.HireDate, r.Manager)),
+        return Build(Text.Get("report.employees.title"), Text.Get("report.employees.description"),
+            [Col("employeeNumber"), Col("name"), Col("email"), Col("department"),
+             Col("position"), Col("employmentType", C.Status), Col("status", C.Status),
+             Col("hireDate", C.Date), Col("manager")],
+            rows.Select(r => Row(r.EmployeeNumber, r.Name, r.Email, r.Department, r.Position, r.EmploymentType, r.Status, r.HireDate, r.Manager)),
             [
-                new("Employees", rows.Count.ToString(Invariant)),
-                new("Active", rows.Count(r => r.Status == EmployeeStatus.Active).ToString(Invariant)),
-                new("Full-time", byType.GetValueOrDefault(EmploymentType.FullTime).ToString(Invariant)),
-                new("Contractors & interns", (byType.GetValueOrDefault(EmploymentType.Contractor) + byType.GetValueOrDefault(EmploymentType.Intern)).ToString(Invariant))
+                Sum("employees", Count(rows.Count)),
+                Sum("active", Count(rows.Count(r => r.Status == EmployeeStatus.Active))),
+                Sum("fullTime", Count(byType.GetValueOrDefault(EmploymentType.FullTime))),
+                Sum("contractorsInterns", Count(byType.GetValueOrDefault(EmploymentType.Contractor) + byType.GetValueOrDefault(EmploymentType.Intern)))
             ],
-            "Employees by department", byDepartment);
+            Text.Get("report.employees.chart"), byDepartment);
     }
 
     private async Task<ReportResult> DepartmentsAsync(ReportFilter f, CancellationToken ct)
@@ -121,18 +124,18 @@ public sealed class ReportService(IApplicationDbContext db, ICurrentUserService 
             })
             .ToListAsync(ct);
 
-        return Build("Department Report", $"Department overview. Leave and expenses cover {from:yyyy-MM-dd} to {to:yyyy-MM-dd}.",
-            [Col("name", "Department"), Col("code", "Code"), Col("manager", "Manager"), Col("employees", "Employees", C.Number),
-             Col("activeProjects", "Active projects", C.Number), Col("openTasks", "Open tasks", C.Number),
-             Col("overdueTasks", "Overdue tasks", C.Number), Col("leaveDays", "Leave days", C.Number), Col("expenses", "Approved expenses", C.Currency)],
+        return Build(Text.Get("report.departments.title"), Text.Get("report.departments.description", from, to),
+            [Col("name", label: "department"), Col("code"), Col("manager"), Col("employees", C.Number),
+             Col("activeProjects", C.Number), Col("openTasks", C.Number),
+             Col("overdueTasks", C.Number), Col("leaveDays", C.Number), Col("expenses", C.Currency)],
             rows.Select(r => Row(r.Name, r.Code, r.Manager, r.Employees, r.ActiveProjects, r.OpenTasks, r.OverdueTasks, r.LeaveDays, r.Expenses)),
             [
-                new("Departments", rows.Count.ToString(Invariant)),
-                new("Employees", rows.Sum(r => r.Employees).ToString(Invariant)),
-                new("Open tasks", rows.Sum(r => r.OpenTasks).ToString(Invariant)),
-                new("Approved expenses", rows.Sum(r => r.Expenses).ToString("N2", Invariant))
+                Sum("departments", Count(rows.Count)),
+                Sum("employees", Count(rows.Sum(r => r.Employees))),
+                Sum("openTasks", Count(rows.Sum(r => r.OpenTasks))),
+                Sum("approvedExpenses", rows.Sum(r => r.Expenses).ToString("N2", Culture))
             ],
-            "Employees per department", rows.Select(r => new ChartPoint(r.Name, r.Employees)).ToList());
+            Text.Get("report.departments.chart"), rows.Select(r => new ChartPoint(r.Name, r.Employees)).ToList());
     }
 
     private async Task<ReportResult> ProjectsAsync(ReportFilter f, bool showBudget, CancellationToken ct)
@@ -161,19 +164,19 @@ public sealed class ReportService(IApplicationDbContext db, ICurrentUserService 
 
         var columns = new List<ReportColumn>
         {
-            Col("code", "Code"), Col("name", "Project"), Col("status", "Status", C.Status), Col("priority", "Priority", C.Status),
-            Col("manager", "Project manager"), Col("department", "Department"), Col("startDate", "Start", C.Date), Col("endDate", "End", C.Date),
-            Col("progress", "Progress", C.Percent), Col("tasks", "Tasks", C.Number), Col("completed", "Completed", C.Number), Col("overdue", "Overdue", C.Number)
+            Col("code"), Col("name", label: "project"), Col("status", C.Status), Col("priority", C.Status),
+            Col("manager", label: "projectManager"), Col("department"), Col("startDate", C.Date), Col("endDate", C.Date),
+            Col("progress", C.Percent), Col("tasks", C.Number), Col("completed", C.Number), Col("overdue", C.Number)
         };
         if (showBudget)
         {
-            columns.Add(Col("budget", "Budget", C.Currency));
+            columns.Add(Col("budget", C.Currency));
         }
 
-        return Build("Project Report", "Portfolio status, schedule and delivery progress.", columns,
+        return Build(Text.Get("report.projects.title"), Text.Get("report.projects.description"), columns,
             rows.Select(r =>
             {
-                var values = new List<object?> { r.ProjectCode, r.Name, r.Status.ToString(), r.Priority.ToString(), r.Manager, r.Department,
+                var values = new List<object?> { r.ProjectCode, r.Name, r.Status, r.Priority, r.Manager, r.Department,
                     r.StartDate, r.EndDate, r.ProgressPercentage, r.Tasks, r.Completed, r.Overdue };
                 if (showBudget)
                 {
@@ -183,12 +186,12 @@ public sealed class ReportService(IApplicationDbContext db, ICurrentUserService 
                 return (IReadOnlyList<object?>)values;
             }),
             [
-                new("Projects", rows.Count.ToString(Invariant)),
-                new("Active", rows.Count(r => r.Status == ProjectStatus.Active).ToString(Invariant)),
-                new("Average progress", rows.Count == 0 ? "0%" : $"{rows.Average(r => r.ProgressPercentage):0}%"),
-                new("Overdue tasks", rows.Sum(r => r.Overdue).ToString(Invariant))
+                Sum("projects", Count(rows.Count)),
+                Sum("active", Count(rows.Count(r => r.Status == ProjectStatus.Active))),
+                Sum("averageProgress", Percent(rows.Count == 0 ? 0 : rows.Average(r => r.ProgressPercentage))),
+                Sum("overdueTasks", Count(rows.Sum(r => r.Overdue)))
             ],
-            "Projects by status", rows.GroupBy(r => r.Status).Select(g => new ChartPoint(g.Key.ToString(), g.Count())).ToList());
+            Text.Get("report.projects.chart"), rows.GroupBy(r => r.Status).Select(g => new ChartPoint(Text.Enum(g.Key), g.Count())).ToList());
     }
 
     private async Task<ReportResult> TasksAsync(ReportFilter f, CancellationToken ct)
@@ -225,19 +228,19 @@ public sealed class ReportService(IApplicationDbContext db, ICurrentUserService 
         var totalAssigned = rows.Sum(r => r.Assigned);
         var totalCompleted = rows.Sum(r => r.Completed);
 
-        return Build("Task Completion Report", $"Tasks created between {from:yyyy-MM-dd} and {to:yyyy-MM-dd}, grouped by assignee.",
-            [Col("name", "Assignee"), Col("department", "Department"), Col("assigned", "Assigned", C.Number), Col("completed", "Completed", C.Number),
-             Col("onTime", "Completed on time", C.Number), Col("overdue", "Overdue", C.Number), Col("completionRate", "Completion rate", C.Percent),
-             Col("hours", "Logged hours", C.Number)],
+        return Build(Text.Get("report.tasks.title"), Text.Get("report.tasks.description", from, to),
+            [Col("name", label: "assignee"), Col("department"), Col("assigned", C.Number), Col("completed", C.Number),
+             Col("onTime", C.Number), Col("overdue", C.Number), Col("completionRate", C.Percent),
+             Col("hours", C.Number)],
             rows.Select(r => Row(r.Name, r.Department, r.Assigned, r.Completed, r.OnTime, r.Overdue,
                 r.Assigned == 0 ? 0 : (int)Math.Round(100.0 * r.Completed / r.Assigned), r.Hours)),
             [
-                new("Tasks", totalAssigned.ToString(Invariant)),
-                new("Completed", totalCompleted.ToString(Invariant)),
-                new("Completion rate", totalAssigned == 0 ? "0%" : $"{100.0 * totalCompleted / totalAssigned:0}%"),
-                new("Overdue", rows.Sum(r => r.Overdue).ToString(Invariant))
+                Sum("tasks", Count(totalAssigned)),
+                Sum("completed", Count(totalCompleted)),
+                Sum("completionRate", Percent(totalAssigned == 0 ? 0 : 100.0 * totalCompleted / totalAssigned)),
+                Sum("overdue", Count(rows.Sum(r => r.Overdue)))
             ],
-            "Tasks by status", byStatus.Select(s => new ChartPoint(s.Key.ToString(), s.Count)).ToList());
+            Text.Get("report.tasks.chart"), byStatus.Select(s => new ChartPoint(Text.Enum(s.Key), s.Count)).ToList());
     }
 
     private async Task<ReportResult> LeaveAsync(ReportFilter f, CancellationToken ct)
@@ -260,18 +263,18 @@ public sealed class ReportService(IApplicationDbContext db, ICurrentUserService 
             .ToListAsync(ct);
 
         var approvedRows = rows.Where(r => r.Status == LeaveRequestStatus.Approved).ToList();
-        return Build("Leave Report", $"Leave overlapping {from:yyyy-MM-dd} to {to:yyyy-MM-dd}.",
-            [Col("employee", "Employee"), Col("department", "Department"), Col("leaveType", "Type", C.Status), Col("startDate", "Start", C.Date),
-             Col("endDate", "End", C.Date), Col("totalDays", "Days", C.Number), Col("status", "Status", C.Status), Col("approvedBy", "Decided by")],
-            rows.Select(r => Row(r.Employee, r.Department, r.LeaveType.ToString(), r.StartDate, r.EndDate, r.TotalDays, r.Status.ToString(), r.ApprovedBy)),
+        return Build(Text.Get("report.leave.title"), Text.Get("report.leave.description", from, to),
+            [Col("employee"), Col("department"), Col("leaveType", C.Status), Col("startDate", C.Date),
+             Col("endDate", C.Date), Col("totalDays", C.Number), Col("status", C.Status), Col("approvedBy")],
+            rows.Select(r => Row(r.Employee, r.Department, r.LeaveType, r.StartDate, r.EndDate, r.TotalDays, r.Status, r.ApprovedBy)),
             [
-                new("Requests", rows.Count.ToString(Invariant)),
-                new("Approved days", approvedRows.Sum(r => r.TotalDays).ToString(Invariant)),
-                new("Pending", rows.Count(r => r.Status == LeaveRequestStatus.Pending).ToString(Invariant)),
-                new("Rejected", rows.Count(r => r.Status == LeaveRequestStatus.Rejected).ToString(Invariant))
+                Sum("requests", Count(rows.Count)),
+                Sum("approvedDays", Count(approvedRows.Sum(r => r.TotalDays))),
+                Sum("pending", Count(rows.Count(r => r.Status == LeaveRequestStatus.Pending))),
+                Sum("rejected", Count(rows.Count(r => r.Status == LeaveRequestStatus.Rejected)))
             ],
-            "Approved days by leave type",
-            approvedRows.GroupBy(r => r.LeaveType).Select(g => new ChartPoint(g.Key.ToString(), g.Sum(r => r.TotalDays))).ToList());
+            Text.Get("report.leave.chart"),
+            approvedRows.GroupBy(r => r.LeaveType).Select(g => new ChartPoint(Text.Enum(g.Key), g.Sum(r => r.TotalDays))).ToList());
     }
 
     private async Task<ReportResult> ExpensesAsync(ReportFilter f, CancellationToken ct)
@@ -298,7 +301,7 @@ public sealed class ReportService(IApplicationDbContext db, ICurrentUserService 
             {
                 "department" => counted.GroupBy(r => r.Department),
                 "employee" => counted.GroupBy(r => r.Employee),
-                "category" => counted.GroupBy(r => r.Category.ToString()),
+                "category" => counted.GroupBy(r => Text.Enum(r.Category)),
                 _ => counted.GroupBy(r => r.ExpenseDate.ToString("yyyy-MM", Invariant))
             })
             .Select(g => new ChartPoint(g.Key, g.Sum(r => r.Amount)))
@@ -308,23 +311,23 @@ public sealed class ReportService(IApplicationDbContext db, ICurrentUserService 
 
         var summary = new List<ReportSummaryItem>
         {
-            new("Claims", rows.Count.ToString(Invariant)),
-            new("Awaiting approval", rows.Count(r => r.Status == ExpenseStatus.Submitted).ToString(Invariant))
+            Sum("claims", Count(rows.Count)),
+            Sum("awaitingApproval", Count(rows.Count(r => r.Status == ExpenseStatus.Submitted)))
         };
-        summary.AddRange(counted.GroupBy(r => r.Currency).Select(g => new ReportSummaryItem($"Approved ({g.Key})", g.Sum(r => r.Amount).ToString("N2", Invariant))));
+        summary.AddRange(counted.GroupBy(r => r.Currency).Select(g => new ReportSummaryItem(Text.Get("report.sum.approvedIn", g.Key), g.Sum(r => r.Amount).ToString("N2", Culture))));
 
         var chartTitle = groupBy switch
         {
-            "department" => "Approved amount by department",
-            "employee" => "Approved amount by employee",
-            "category" => "Approved amount by category",
-            _ => "Approved amount by month"
+            "department" => Text.Get("report.expenses.chart.department"),
+            "employee" => Text.Get("report.expenses.chart.employee"),
+            "category" => Text.Get("report.expenses.chart.category"),
+            _ => Text.Get("report.expenses.chart.month")
         };
 
-        return Build("Expense Report", $"Submitted claims dated {from:yyyy-MM-dd} to {to:yyyy-MM-dd}. Chart totals combine currencies.",
-            [Col("expenseDate", "Date", C.Date), Col("employee", "Employee"), Col("department", "Department"), Col("category", "Category", C.Status),
-             Col("description", "Description"), Col("amount", "Amount", C.Currency), Col("currency", "Currency"), Col("status", "Status", C.Status)],
-            rows.Select(r => Row(r.ExpenseDate, r.Employee, r.Department, r.Category.ToString(), r.Description, r.Amount, r.Currency, r.Status.ToString())),
+        return Build(Text.Get("report.expenses.title"), Text.Get("report.expenses.description", from, to),
+            [Col("expenseDate", C.Date), Col("employee"), Col("department"), Col("category", C.Status),
+             Col("description"), Col("amount", C.Currency), Col("currency"), Col("status", C.Status)],
+            rows.Select(r => Row(r.ExpenseDate, r.Employee, r.Department, r.Category, r.Description, r.Amount, r.Currency, r.Status)),
             summary, chartTitle, chart);
     }
 
@@ -345,7 +348,17 @@ public sealed class ReportService(IApplicationDbContext db, ICurrentUserService 
         return (from, to);
     }
 
-    private static ReportColumn Col(string key, string label, C type = C.Text) => new(key, label, type);
+    /// <summary>Column whose header is <c>report.col.&lt;label ?? key&gt;</c> in the request language.</summary>
+    private static ReportColumn Col(string key, C type = C.Text, string? label = null) =>
+        new(key, Text.Get($"report.col.{label ?? key}"), type);
+
+    private static ReportSummaryItem Sum(string key, string value) => new(Text.Get($"report.sum.{key}"), value);
+
+    private static string Count(int value) => value.ToString(Culture);
+
+    private static string Percent(double value) => (value / 100).ToString("P0", Culture);
+
+    private static CultureInfo Culture => Languages.Culture(Languages.Current);
 
     private static IReadOnlyList<object?> Row(params object?[] values) => values;
 
